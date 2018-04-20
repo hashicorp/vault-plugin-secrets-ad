@@ -1,4 +1,4 @@
-# Vault Plugin: Active Directory Secrets Backend [![Build Status](https://travis-ci.org/hashicorp/vault-plugin-secrets-active-directory.svg?branch=master)](https://travis-ci.org/hashicorp/vault-plugin-secrets-active-directory)
+# Vault Plugin: Active Directory Secrets Backend
 
 This is a standalone backend plugin for use with [Hashicorp Vault](https://www.github.com/hashicorp/vault).
 This plugin provides Active Directory functionality to Vault.
