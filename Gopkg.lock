@@ -132,17 +132,11 @@
   name = "github.com/hashicorp/vault"
   packages = [
     "api",
-    "builtin/logical/ad/config",
-    "builtin/logical/ad/creds",
-    "builtin/logical/ad/roles",
-    "builtin/logical/ad/util",
-    "helper/activedirectory",
     "helper/certutil",
     "helper/compressutil",
     "helper/consts",
     "helper/errutil",
     "helper/jsonutil",
-    "helper/ldapifc",
     "helper/locksutil",
     "helper/logging",
     "helper/mlock",
@@ -305,6 +299,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b3f5b449f49460f6f38ae4c0d6d4ee0eaf1404e755bc1368f60d4aa517f6d6a8"
+  inputs-digest = "25b62c8fe1df7226abb741671244bb7cf2526aa00779b690eeac2d1504ecac11"
   solver-name = "gps-cdcl"
-  solver-version = 1
+solver-version = 1
