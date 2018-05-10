@@ -307,6 +307,10 @@ func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(
 		pr.AuthInfo = t.authInfo
 	}
 	s.ctx = peer.NewContext(s.ctx, pr)
+	// Cache the current stream to the context so that the server application
+	// can find out. Required when the server wants to send some metadata
+	// back to the client (unary call only).
+	s.ctx = newContextWithStream(s.ctx, s)
 	// Attach the received metadata to the context.
 	if len(state.mdata) > 0 {
 		s.ctx = metadata.NewIncomingContext(s.ctx, state.mdata)
@@ -884,14 +888,15 @@ func (t *http2Server) Write(s *Stream, hdr []byte, data []byte, opts *Options) e
 			}
 			ltq, _, err := t.localSendQuota.get(size, s.waiters)
 			if err != nil {
-				// Add the acquired quota back to transport.
-				t.sendQuotaPool.add(tq)
 				return err
 			}
 			// even if ltq is smaller than size we don't adjust size since,
 			// ltq is only a soft limit.
 			streamQuota -= size
 			p := r[:size]
+			// Reset ping strikes when sending data since this might cause
+			// the peer to send ping.
+			atomic.StoreUint32(&t.resetPingStrikes, 1)
 			success := func() {
 				ltq := ltq
 				t.controlBuf.put(&dataFrame{streamID: s.id, endStream: false, d: p, f: func() {
@@ -1006,9 +1011,6 @@ var goAwayPing = &ping{data: [8]byte{1, 6, 1, 8, 0, 3, 3, 9}}
 func (t *http2Server) itemHandler(i item) error {
 	switch i := i.(type) {
 	case *dataFrame:
-		// Reset ping strikes when sending data since this might cause
-		// the peer to send ping.
-		atomic.StoreUint32(&t.resetPingStrikes, 1)
 		if err := t.framer.fr.WriteData(i.streamID, i.endStream, i.d); err != nil {
 			return err
 		}
