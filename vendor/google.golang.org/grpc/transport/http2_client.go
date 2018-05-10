@@ -121,6 +121,18 @@ func dial(ctx context.Context, fn func(context.Context, string) (net.Conn, error
 }
 
 func isTemporary(err error) bool {
+	switch err {
+	case io.EOF:
+		// Connection closures may be resolved upon retry, and are thus
+		// treated as temporary.
+		return true
+	case context.DeadlineExceeded:
+		// In Go 1.7, context.DeadlineExceeded implements Timeout(), and this
+		// special case is not needed. Until then, we need to keep this
+		// clause.
+		return true
+	}
+
 	switch err := err.(type) {
 	case interface {
 		Temporary() bool
@@ -133,7 +145,7 @@ func isTemporary(err error) bool {
 		// temporary.
 		return err.Timeout()
 	}
-	return true
+	return false
 }
 
 // newHTTP2Client constructs a connected ClientTransport to addr based on HTTP2
@@ -169,7 +181,10 @@ func newHTTP2Client(connectCtx, ctx context.Context, addr TargetInfo, opts Conne
 		scheme = "https"
 		conn, authInfo, err = creds.ClientHandshake(connectCtx, addr.Authority, conn)
 		if err != nil {
-			return nil, connectionErrorf(isTemporary(err), err, "transport: authentication handshake failed: %v", err)
+			// Credentials handshake errors are typically considered permanent
+			// to avoid retrying on e.g. bad certificates.
+			temp := isTemporary(err)
+			return nil, connectionErrorf(temp, err, "transport: authentication handshake failed: %v", err)
 		}
 		isSecure = true
 	}
@@ -449,22 +464,7 @@ func (t *http2Client) NewStream(ctx context.Context, callHdr *CallHdr) (_ *Strea
 	if b := stats.OutgoingTrace(ctx); b != nil {
 		headerFields = append(headerFields, hpack.HeaderField{Name: "grpc-trace-bin", Value: encodeBinHeader(b)})
 	}
-
-	if md, added, ok := metadata.FromOutgoingContextRaw(ctx); ok {
-		var k string
-		for _, vv := range added {
-			for i, v := range vv {
-				if i%2 == 0 {
-					k = v
-					continue
-				}
-				// HTTP doesn't allow you to set pseudoheaders after non pseudoheaders were set.
-				if isReservedHeader(k) {
-					continue
-				}
-				headerFields = append(headerFields, hpack.HeaderField{Name: strings.ToLower(k), Value: encodeMetadataHeader(k, v)})
-			}
-		}
+	if md, ok := metadata.FromOutgoingContext(ctx); ok {
 		for k, vv := range md {
 			// HTTP doesn't allow you to set pseudoheaders after non pseudoheaders were set.
 			if isReservedHeader(k) {
@@ -701,8 +701,6 @@ func (t *http2Client) Write(s *Stream, hdr []byte, data []byte, opts *Options) e
 			}
 			ltq, _, err := t.localSendQuota.get(size, s.waiters)
 			if err != nil {
-				// Add the acquired quota back to transport.
-				t.sendQuotaPool.add(tq)
 				return err
 			}
 			// even if ltq is smaller than size we don't adjust size since

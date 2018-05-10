@@ -1,6 +1,6 @@
 # Gopkg.toml example
 #
-# Refer to https://github.com/golang/dep/blob/master/docs/Gopkg.toml.md
+# Refer to https://golang.github.io/dep/docs/Gopkg.toml.html
 # for detailed Gopkg.toml documentation.
 #
 # required = ["github.com/user/thing/cmd/thing"]
@@ -34,12 +34,20 @@
   name = "github.com/hashicorp/go-hclog"
 
 [[constraint]]
-  branch = "ad-secrets-backend"
+  branch = "master"
+  name = "github.com/hashicorp/go-uuid"
+
+[[constraint]]
+  branch = "master"
   name = "github.com/hashicorp/vault"
 
 [[constraint]]
   name = "github.com/patrickmn/go-cache"
   version = "2.1.0"
+
+[[constraint]]
+  name = "golang.org/x/text"
+  version = "0.3.0"
 
 [prune]
   go-tests = true
