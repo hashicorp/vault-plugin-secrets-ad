@@ -2,10 +2,9 @@ package plugin
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
-
-	"fmt"
 
 	"github.com/go-errors/errors"
 	"github.com/hashicorp/vault/logical"

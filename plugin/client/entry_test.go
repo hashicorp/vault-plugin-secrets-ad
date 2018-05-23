@@ -2,7 +2,6 @@ package client
 
 import (
 	"testing"
-
 	"time"
 
 	"github.com/go-ldap/ldap"
