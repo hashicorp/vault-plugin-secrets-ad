@@ -207,6 +207,10 @@ func (b *backend) generateAndReturnCreds(ctx context.Context, storage logical.St
 }
 
 const (
-	credHelpSynopsis    = ``
-	credHelpDescription = ``
+	credHelpSynopsis = `
+Retrieve a role's creds by role name.
+`
+	credHelpDescription = `
+Read creds using a role's name to view the login, current password, and last password.
+`
 )
