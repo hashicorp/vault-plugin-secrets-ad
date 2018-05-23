@@ -52,7 +52,7 @@ gox \
     -ldflags "-X github.com/hashicorp/${TOOL}/version.GitCommit='${GIT_COMMIT}${GIT_DIRTY}'" \
     -output "pkg/{{.OS}}_{{.Arch}}/${TOOL}" \
     -tags="${BUILD_TAGS}" \
-    ./cmd/$TOOL
+    .
 
 # Move all the compiled things to the $GOPATH/bin
 OLDIFS=$IFS
