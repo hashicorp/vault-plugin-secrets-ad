@@ -2,7 +2,6 @@ package util
 
 import (
 	"fmt"
-
 	"time"
 
 	"github.com/hashicorp/go-hclog"

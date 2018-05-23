@@ -2,10 +2,8 @@ package plugin
 
 import (
 	"context"
-
-	"time"
-
 	"sync"
+	"time"
 
 	"github.com/hashicorp/vault-plugin-secrets-active-directory/plugin/client"
 	"github.com/hashicorp/vault-plugin-secrets-active-directory/plugin/util"
