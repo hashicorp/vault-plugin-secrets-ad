@@ -1,8 +1,30 @@
 package main
 
-import "fmt"
+import (
+	"os"
+
+	hclog "github.com/hashicorp/go-hclog"
+	ad "github.com/hashicorp/vault-plugin-secrets-active-directory/plugin"
+	"github.com/hashicorp/vault/helper/pluginutil"
+	"github.com/hashicorp/vault/logical/plugin"
+)
 
 func main() {
-	// TODO strip this file, it's just to make sure TeamCity is working.
-	fmt.Println("Hello, world!!")
+	apiClientMeta := &pluginutil.APIClientMeta{}
+	flags := apiClientMeta.FlagSet()
+	flags.Parse(os.Args[1:])
+
+	tlsConfig := apiClientMeta.GetTLSConfig()
+	tlsProviderFunc := pluginutil.VaultPluginTLSProvider(tlsConfig)
+
+	err := plugin.Serve(&plugin.ServeOpts{
+		BackendFactoryFunc: ad.Factory,
+		TLSProviderFunc:    tlsProviderFunc,
+	})
+	if err != nil {
+		logger := hclog.New(&hclog.LoggerOptions{})
+
+		logger.Error("plugin shutting down", "error", err)
+		os.Exit(1)
+	}
 }

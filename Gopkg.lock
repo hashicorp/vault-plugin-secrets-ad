@@ -164,7 +164,7 @@
     "physical/inmem",
     "version"
   ]
-  revision = "136555a0e09d0f66eda0ba67272152bfb837a6e4"
+  revision = "8b4f412299fa27b601b0177654294f50a857c0c3"
 
 [[projects]]
   branch = "master"
