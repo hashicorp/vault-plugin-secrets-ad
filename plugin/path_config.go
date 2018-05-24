@@ -134,7 +134,18 @@ func (b *backend) configReadOperation(ctx context.Context, req *logical.Request,
 	// NOTE:
 	// "password" is intentionally not returned by this endpoint,
 	// as we lean away from returning sensitive information unless it's absolutely necessary.
-	configMap := config.ADConf.PasswordlessMap()
+	// Also, we don't return the full ADConf here because not all parameters are used by this engine.
+	configMap := map[string]interface{}{
+		"url":             config.ADConf.Url,
+		"starttls":        config.ADConf.StartTLS,
+		"insecure_tls":    config.ADConf.InsecureTLS,
+		"certificate":     config.ADConf.Certificate,
+		"binddn":          config.ADConf.BindDN,
+		"userdn":          config.ADConf.UserDN,
+		"upndomain":       config.ADConf.UPNDomain,
+		"tls_min_version": config.ADConf.TLSMinVersion,
+		"tls_max_version": config.ADConf.TLSMaxVersion,
+	}
 	for k, v := range config.PasswordConf.Map() {
 		configMap[k] = v
 	}
