@@ -4,7 +4,7 @@ import (
 	"os"
 
 	hclog "github.com/hashicorp/go-hclog"
-	ad "github.com/hashicorp/vault-plugin-secrets-active-directory/plugin"
+	ad "github.com/hashicorp/vault-plugin-secrets-ad/plugin"
 	"github.com/hashicorp/vault/helper/pluginutil"
 	"github.com/hashicorp/vault/logical/plugin"
 )
