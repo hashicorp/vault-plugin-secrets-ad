@@ -180,7 +180,7 @@ func (b *backend) roleReadOperation(ctx context.Context, req *logical.Request, f
 		return nil, err
 	}
 	if role == nil {
-		return nil, fmt.Errorf("%s not found", roleName)
+		return nil, nil
 	}
 
 	return &logical.Response{

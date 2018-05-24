@@ -87,7 +87,7 @@ func (b *backend) credReadOperation(ctx context.Context, req *logical.Request, f
 		return nil, err
 	}
 	if role == nil {
-		return nil, fmt.Errorf("%s not found", roleName)
+		return nil, nil
 	}
 
 	var resp *logical.Response
