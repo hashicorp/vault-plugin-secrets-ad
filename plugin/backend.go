@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/vault-plugin-secrets-active-directory/plugin/client"
-	"github.com/hashicorp/vault-plugin-secrets-active-directory/plugin/util"
+	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
+	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
 	"github.com/hashicorp/vault/helper/ldaputil"
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/framework"

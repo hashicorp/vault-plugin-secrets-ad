@@ -5,7 +5,7 @@ import (
 
 	"github.com/go-ldap/ldap"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/vault-plugin-secrets-active-directory/plugin/ldapifc"
+	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/ldapifc"
 	"github.com/hashicorp/vault/helper/ldaputil"
 )
 

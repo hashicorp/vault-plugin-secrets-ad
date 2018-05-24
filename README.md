@@ -45,7 +45,7 @@ If you wish to work on this plugin, you'll first need
 For local dev first make sure Go is properly installed, including
 setting up a [GOPATH](https://golang.org/doc/code.html#GOPATH).
 Next, clone this repository into
-`$GOPATH/src/github.com/hashicorp/vault-plugin-secrets-active-directory`.
+`$GOPATH/src/github.com/hashicorp/vault-plugin-secrets-ad`.
 You can then download any required build tools by bootstrapping your
 environment:
 
@@ -83,7 +83,7 @@ Once the server is started, register the plugin in the Vault server's [plugin ca
 ```sh
 $ vault write sys/plugins/catalog/ad \
         sha_256=<expected SHA256 Hex value of the plugin binary> \
-        command="vault-plugin-secrets-active-directory"
+        command="vault-plugin-secrets-ad"
 ...
 Success! Data written to: sys/plugins/catalog/ad
 ```
@@ -92,9 +92,9 @@ Note you should generate a new sha256 checksum if you have made changes
 to the plugin. Example using openssl:
 
 ```sh
-openssl dgst -sha256 $GOPATH/vault-plugin-secrets-active-directory
+openssl dgst -sha256 $GOPATH/vault-plugin-secrets-ad
 ...
-SHA256(.../go/bin/vault-plugin-secrets-active-directory)= 896c13c0f5305daed381952a128322e02bc28a57d0c862a78cbc2ea66e8c6fa1
+SHA256(.../go/bin/vault-plugin-secrets-ad)= 896c13c0f5305daed381952a128322e02bc28a57d0c862a78cbc2ea66e8c6fa1
 ```
 
 Enable the auth plugin backend using the secrets enable plugin command:
