@@ -63,6 +63,7 @@ func WriteConfig(t *testing.T) {
 			"url":         "ldap://138.91.247.105",
 			"certificate": validCertificate,
 			"userdn":      "dc=example,dc=com",
+			"formatter":   "mycustom{{PASSWORD}}",
 		},
 	}
 	resp, err := testBackend.HandleRequest(testCtx, req)
@@ -124,6 +125,10 @@ func ReadConfig(t *testing.T) {
 
 	if resp.Data["length"] != defaultPasswordLength {
 		t.Fatalf("received unexpected length of \"%d\"", resp.Data["length"])
+	}
+
+	if resp.Data["formatter"] != "mycustom{{PASSWORD}}" {
+		t.Fatalf("received unexpected formatter of \"%d\"", resp.Data["formatter"])
 	}
 }
 
