@@ -275,9 +275,6 @@ func ReadCred(t *testing.T) {
 	if !strings.HasPrefix(password, util.PasswordComplexityPrefix) {
 		t.Fatalf("%s doesn't have the expected complexity prefix of %s", password, util.PasswordComplexityPrefix)
 	}
-	if len(password) < util.MinimumPasswordLength {
-		t.Fatalf("%s is too short", password)
-	}
 }
 
 const validCertificate = `

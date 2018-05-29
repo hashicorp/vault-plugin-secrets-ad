@@ -10,7 +10,7 @@ func TestGeneratePassword(t *testing.T) {
 
 		password1, err := GeneratePassword("", desiredLength)
 
-		if desiredLength < MinimumPasswordLength {
+		if desiredLength < len(PasswordComplexityPrefix)+minimumLengthOfComplexString {
 			if err == nil {
 				t.Fatalf("desiredLength of %d should yield an error", desiredLength)
 			} else {
@@ -41,65 +41,57 @@ func TestGeneratePassword(t *testing.T) {
 
 func TestFormatPassword(t *testing.T) {
 
-	testStrLen := len("helloworld")
+	desiredLength := len("helloworld") + minimumLengthOfComplexString
 
 	// Test with {{PASSWORD}} in the middle of the formatter.
-	password, err := GeneratePassword("hello{{PASSWORD}}world", MinimumPasswordLength)
+	password, err := GeneratePassword("hello{{PASSWORD}}world", desiredLength)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	if len(password) != (MinimumPasswordLength + testStrLen) {
+	if len(password) != desiredLength {
 		t.Fatalf("unexpected password length of %d in %s", len(password), password)
 	}
 
 	// Test with {{PASSWORD}} at the start of the formatter.
-	password, err = GeneratePassword("{{PASSWORD}}helloworld", MinimumPasswordLength)
+	password, err = GeneratePassword("{{PASSWORD}}helloworld", desiredLength)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
-	if len(password) != (MinimumPasswordLength + testStrLen) {
+	if len(password) != desiredLength {
 		t.Fatalf("unexpected password length of %d in %s", len(password), password)
 	}
 
 	// Test with {{PASSWORD}} at the end of the formatter.
-	password, err = GeneratePassword("helloworld{{PASSWORD}}", MinimumPasswordLength)
+	password, err = GeneratePassword("helloworld{{PASSWORD}}", desiredLength)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
-	if len(password) != (MinimumPasswordLength + testStrLen) {
+	if len(password) != desiredLength {
 		t.Fatalf("unexpected password length of %d in %s", len(password), password)
 	}
 
 	// Test with {{PASSWORD}} not provided so essentially they're trying to provide an unchanging password,
 	// defeating the purpose of Vault.
-	password, err = GeneratePassword("helloworld", MinimumPasswordLength)
+	password, err = GeneratePassword("helloworld", desiredLength)
 	if err == nil {
 		t.Fatal("should have received an error because a static password was provided as the formatter")
 	}
 
 	// Test normal, non-custom formatting path.
-	password, err = GeneratePassword("", MinimumPasswordLength)
+	password, err = GeneratePassword("", desiredLength)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	if len(password) != MinimumPasswordLength {
-		t.Fatalf("unexpected password length of %d in %s", MinimumPasswordLength, password)
+	if len(password) != desiredLength {
+		t.Fatalf("unexpected password length of %d in %s", minimumLengthOfComplexString, password)
 	}
 	if !strings.HasPrefix(password, PasswordComplexityPrefix) {
 		t.Fatalf("%s should have complexity prefix of %s", password, PasswordComplexityPrefix)
 	}
 
 	// Test password being provided twice. Should be two different passwords.
-	password, err = GeneratePassword("hello{{PASSWORD}}worldhello{{PASSWORD}}world", MinimumPasswordLength)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	if len(password) != (MinimumPasswordLength+testStrLen)*2 {
-		t.Fatalf("unexpected password length of %d in %s", len(password), password)
-	}
-	firstHalf := password[:MinimumPasswordLength+testStrLen]
-	secondHalf := password[MinimumPasswordLength+testStrLen:]
-	if firstHalf == secondHalf {
-		t.Fatalf("%s should have differing passwords in each %s field", password, pwdFieldTmpl)
+	password, err = GeneratePassword("hello{{PASSWORD}}worldhello{{PASSWORD}}world", minimumLengthOfComplexString)
+	if err == nil {
+		t.Fatal("should have an error because there are multiple pwd template fields")
 	}
 }

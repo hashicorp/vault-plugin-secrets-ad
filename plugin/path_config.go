@@ -3,7 +3,6 @@ package plugin
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
 	"github.com/hashicorp/vault/helper/ldaputil"
@@ -105,9 +104,10 @@ func (b *backend) configUpdateOperation(ctx context.Context, req *logical.Reques
 	if maxTTL < 1 {
 		return nil, errors.New("max_ttl must be positive")
 	}
-	if length < util.MinimumPasswordLength {
-		return nil, fmt.Errorf("minimum password length is %d for sufficient complexity to be secure, though Vault recommends a higher length", util.MinimumPasswordLength)
+	if err := util.ValidatePwdSettings(formatter, length); err != nil {
+		return nil, err
 	}
+
 	passwordConf := &passwordConf{
 		TTL:       ttl,
 		MaxTTL:    maxTTL,
