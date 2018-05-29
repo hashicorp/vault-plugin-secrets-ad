@@ -49,7 +49,7 @@ func ValidatePwdSettings(formatter string, totalLength int) error {
 		return fmt.Errorf("%s must contain password replacement field of %s", formatter, PwdFieldTmpl)
 	}
 	if numPwdFields > 1 {
-		fmt.Errorf("%s must contain ONE password replacement field of %s", formatter, PwdFieldTmpl)
+		return fmt.Errorf("%s must contain ONE password replacement field of %s", formatter, PwdFieldTmpl)
 	}
 	return nil
 }

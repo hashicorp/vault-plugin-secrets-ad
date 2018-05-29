@@ -68,7 +68,7 @@ func (b *backend) configFields() map[string]*framework.FieldSchema {
 	}
 	fields["formatter"] = &framework.FieldSchema{
 		Type:        framework.TypeString,
-		Description: "Text to insert the password into, ex. \"customPrefix{{PASSWORD}}customSuffix\".",
+		Description: `Text to insert the password into, ex. "customPrefix{{PASSWORD}}customSuffix".`,
 	}
 	return fields
 }
