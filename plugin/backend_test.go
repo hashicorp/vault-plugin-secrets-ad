@@ -63,6 +63,7 @@ func WriteConfig(t *testing.T) {
 			"url":         "ldap://138.91.247.105",
 			"certificate": validCertificate,
 			"userdn":      "dc=example,dc=com",
+			"formatter":   "mycustom{{PASSWORD}}",
 		},
 	}
 	resp, err := testBackend.HandleRequest(testCtx, req)
@@ -124,6 +125,10 @@ func ReadConfig(t *testing.T) {
 
 	if resp.Data["length"] != defaultPasswordLength {
 		t.Fatalf("received unexpected length of \"%d\"", resp.Data["length"])
+	}
+
+	if resp.Data["formatter"] != "mycustom{{PASSWORD}}" {
+		t.Fatalf("received unexpected formatter of \"%d\"", resp.Data["formatter"])
 	}
 }
 
@@ -269,9 +274,6 @@ func ReadCred(t *testing.T) {
 	password := resp.Data["current_password"].(string)
 	if !strings.HasPrefix(password, util.PasswordComplexityPrefix) {
 		t.Fatalf("%s doesn't have the expected complexity prefix of %s", password, util.PasswordComplexityPrefix)
-	}
-	if len(password) < util.MinimumPasswordLength {
-		t.Fatalf("%s is too short", password)
 	}
 }
 
