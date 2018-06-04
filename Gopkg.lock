@@ -27,8 +27,7 @@
 [[projects]]
   name = "github.com/go-ldap/ldap"
   packages = ["."]
-  revision = "bb7a9ca6e4fbc2129e3db588a34bc970ffe811a9"
-  version = "v2.5.1"
+  revision = "23c4ee25d1434f2231f92afaeebfbfa7900ebbb0"
 
 [[projects]]
   name = "github.com/golang/protobuf"
@@ -88,7 +87,7 @@
   branch = "master"
   name = "github.com/hashicorp/go-retryablehttp"
   packages = ["."]
-  revision = "763e4b5d05f5534071213c67c335aad6b0d318a7"
+  revision = "3b087ef2d313afe6c55b2f511d20db04ca767075"
 
 [[projects]]
   branch = "master"
@@ -168,7 +167,7 @@
     "physical/inmem",
     "version"
   ]
-  revision = "da2bb1c8a7b2ac56a3448eb460fe4b558f1da116"
+  revision = "deb2904f46f951bd04505376238af6d5b3e25e63"
 
 [[projects]]
   branch = "master"
