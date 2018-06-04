@@ -49,6 +49,10 @@
   name = "golang.org/x/text"
   version = "0.3.0"
 
+[[constraint]]
+  name = "github.com/go-ldap/ldap"
+  branch = "master"
+
 [prune]
   go-tests = true
   unused-packages = true

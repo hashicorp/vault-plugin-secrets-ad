@@ -25,9 +25,10 @@
   version = "v1.0.1"
 
 [[projects]]
+  branch = "master"
   name = "github.com/go-ldap/ldap"
   packages = ["."]
-  revision = "23c4ee25d1434f2231f92afaeebfbfa7900ebbb0"
+  revision = "529aec66a9f250671b89721a83a81563bd831f5f"
 
 [[projects]]
   name = "github.com/golang/protobuf"
@@ -167,7 +168,7 @@
     "physical/inmem",
     "version"
   ]
-  revision = "deb2904f46f951bd04505376238af6d5b3e25e63"
+  revision = "3b1ade706c3b338b3426ea73a11835a1b0c0bcf2"
 
 [[projects]]
   branch = "master"
@@ -223,7 +224,7 @@
     "internal/timeseries",
     "trace"
   ]
-  revision = "dfa909b99c79129e1100513e5cd36307665e5723"
+  revision = "1e491301e022f8f977054da4c2d852decd59571f"
 
 [[projects]]
   branch = "master"
@@ -268,7 +269,7 @@
   branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
-  revision = "694d95ba50e67b2e363f3483057db5d4910c18f9"
+  revision = "81158efcc9f219c511e4d3c0d61a0e6e49c01a24"
 
 [[projects]]
   name = "google.golang.org/grpc"
@@ -312,6 +313,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6f1354bf50d282bb0fd9431d696c26de4bbd50f9a74755cca54642510e3708b7"
+  inputs-digest = "45b75d9cbd2400044cc06c69b108753e908e340f0f21119e8f83b28c963a3185"
   solver-name = "gps-cdcl"
   solver-version = 1
