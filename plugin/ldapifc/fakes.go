@@ -3,6 +3,7 @@ package ldapifc
 import (
 	"crypto/tls"
 	"fmt"
+	"reflect"
 
 	"github.com/go-ldap/ldap"
 	"github.com/hashicorp/vault/helper/ldaputil"
@@ -35,20 +36,8 @@ func (f *FakeLDAPConnection) Bind(username, password string) error {
 func (f *FakeLDAPConnection) Close() {}
 
 func (f *FakeLDAPConnection) Modify(modifyRequest *ldap.ModifyRequest) error {
-	if f.ModifyRequestToExpect.DN != modifyRequest.DN {
-		return fmt.Errorf("expected modifyRequest of %s, but received %s", f.ModifyRequestToExpect, modifyRequest)
-	}
-	if len(f.ModifyRequestToExpect.ReplaceAttributes) != len(modifyRequest.ReplaceAttributes) {
-		return fmt.Errorf("expected modifyRequest of %s, but received %s", f.ModifyRequestToExpect, modifyRequest)
-	}
-	if f.ModifyRequestToExpect.ReplaceAttributes[0].Type != modifyRequest.ReplaceAttributes[0].Type {
-		return fmt.Errorf("expected modifyRequest of %s, but received %s", f.ModifyRequestToExpect, modifyRequest)
-	}
-	if len(f.ModifyRequestToExpect.ReplaceAttributes[0].Vals) != len(modifyRequest.ReplaceAttributes[0].Vals) {
-		return fmt.Errorf("expected modifyRequest of %s, but received %s", f.ModifyRequestToExpect, modifyRequest)
-	}
-	if f.ModifyRequestToExpect.ReplaceAttributes[0].Vals[0] != modifyRequest.ReplaceAttributes[0].Vals[0] {
-		return fmt.Errorf("expected modifyRequest of %s, but received %s", f.ModifyRequestToExpect, modifyRequest)
+	if !reflect.DeepEqual(f.ModifyRequestToExpect, modifyRequest) {
+		return fmt.Errorf("expected modifyRequest of %#v, but received %#v", f.ModifyRequestToExpect, modifyRequest)
 	}
 	return nil
 }

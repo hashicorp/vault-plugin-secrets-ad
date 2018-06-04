@@ -79,13 +79,8 @@ func TestUpdateEntry(t *testing.T) {
 
 	conn.ModifyRequestToExpect = &ldap.ModifyRequest{
 		DN: "CN=Jim H.. Jones,OU=Vault,OU=Engineering,DC=example,DC=com",
-		ReplaceAttributes: []ldap.PartialAttribute{
-			{
-				Type: "cn",
-				Vals: []string{"Blue", "Red"},
-			},
-		},
 	}
+	conn.ModifyRequestToExpect.Replace("cn", []string{"Blue", "Red"})
 	ldapClient := &ldaputil.Client{
 		Logger: hclog.NewNullLogger(),
 		LDAP:   &ldapifc.FakeLDAPClient{conn},
@@ -124,13 +119,8 @@ func TestUpdatePassword(t *testing.T) {
 	}
 	conn.ModifyRequestToExpect = &ldap.ModifyRequest{
 		DN: "CN=Jim H.. Jones,OU=Vault,OU=Engineering,DC=example,DC=com",
-		ReplaceAttributes: []ldap.PartialAttribute{
-			{
-				Type: "unicodePwd",
-				Vals: []string{expectedPass},
-			},
-		},
 	}
+	conn.ModifyRequestToExpect.Replace("unicodePwd", []string{expectedPass})
 	ldapClient := &ldaputil.Client{
 		Logger: hclog.NewNullLogger(),
 		LDAP:   &ldapifc.FakeLDAPClient{conn},
