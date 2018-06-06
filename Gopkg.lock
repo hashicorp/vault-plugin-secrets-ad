@@ -25,10 +25,10 @@
   version = "v1.0.1"
 
 [[projects]]
-  branch = "master"
   name = "github.com/go-ldap/ldap"
   packages = ["."]
-  revision = "529aec66a9f250671b89721a83a81563bd831f5f"
+  revision = "bb7a9ca6e4fbc2129e3db588a34bc970ffe811a9"
+  version = "v2.5.1"
 
 [[projects]]
   name = "github.com/golang/protobuf"
@@ -168,13 +168,13 @@
     "physical/inmem",
     "version"
   ]
-  revision = "3b1ade706c3b338b3426ea73a11835a1b0c0bcf2"
+  revision = "74e1134a91bc9c801dab2c846f49551a99ce1fb6"
 
 [[projects]]
   branch = "master"
   name = "github.com/hashicorp/yamux"
   packages = ["."]
-  revision = "2658be15c5f05e76244154714161f17e3e77de2e"
+  revision = "3520598351bb3500a49ae9563f5539666ae0a27c"
 
 [[projects]]
   branch = "master"
@@ -313,6 +313,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "45b75d9cbd2400044cc06c69b108753e908e340f0f21119e8f83b28c963a3185"
+  inputs-digest = "6f1354bf50d282bb0fd9431d696c26de4bbd50f9a74755cca54642510e3708b7"
   solver-name = "gps-cdcl"
   solver-version = 1

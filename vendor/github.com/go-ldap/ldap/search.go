@@ -1,3 +1,7 @@
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+//
 // File contains Search functionality
 //
 // https://tools.ietf.org/html/rfc4511
@@ -309,10 +313,10 @@ func (l *Conn) SearchWithPaging(searchRequest *SearchRequest, pagingSize uint32)
 	} else {
 		castControl, ok := control.(*ControlPaging)
 		if !ok {
-			return nil, fmt.Errorf("expected paging control to be of type *ControlPaging, got %v", control)
+			return nil, fmt.Errorf("Expected paging control to be of type *ControlPaging, got %v", control)
 		}
 		if castControl.PagingSize != pagingSize {
-			return nil, fmt.Errorf("paging size given in search request (%d) conflicts with size given in search call (%d)", castControl.PagingSize, pagingSize)
+			return nil, fmt.Errorf("Paging size given in search request (%d) conflicts with size given in search call (%d)", castControl.PagingSize, pagingSize)
 		}
 		pagingControl = castControl
 	}
@@ -375,7 +379,7 @@ func (l *Conn) Search(searchRequest *SearchRequest) (*SearchResult, error) {
 	}
 	packet.AppendChild(encodedSearchRequest)
 	// encode search controls
-	if len(searchRequest.Controls) > 0 {
+	if searchRequest.Controls != nil {
 		packet.AppendChild(encodeControls(searchRequest.Controls))
 	}
 
@@ -433,11 +437,7 @@ func (l *Conn) Search(searchRequest *SearchRequest) (*SearchResult, error) {
 			}
 			if len(packet.Children) == 3 {
 				for _, child := range packet.Children[2].Children {
-					decodedChild, err := DecodeControl(child)
-					if err != nil {
-						return nil, fmt.Errorf("failed to decode child control: %s", err)
-					}
-					result.Controls = append(result.Controls, decodedChild)
+					result.Controls = append(result.Controls, DecodeControl(child))
 				}
 			}
 			foundSearchResultDone = true

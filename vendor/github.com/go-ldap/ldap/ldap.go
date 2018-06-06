@@ -1,8 +1,11 @@
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package ldap
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 
@@ -98,13 +101,13 @@ func addLDAPDescriptions(packet *ber.Packet) (err error) {
 
 	switch application {
 	case ApplicationBindRequest:
-		err = addRequestDescriptions(packet)
+		addRequestDescriptions(packet)
 	case ApplicationBindResponse:
-		err = addDefaultLDAPResponseDescriptions(packet)
+		addDefaultLDAPResponseDescriptions(packet)
 	case ApplicationUnbindRequest:
-		err = addRequestDescriptions(packet)
+		addRequestDescriptions(packet)
 	case ApplicationSearchRequest:
-		err = addRequestDescriptions(packet)
+		addRequestDescriptions(packet)
 	case ApplicationSearchResultEntry:
 		packet.Children[1].Children[0].Description = "Object Name"
 		packet.Children[1].Children[1].Description = "Attributes"
@@ -117,37 +120,37 @@ func addLDAPDescriptions(packet *ber.Packet) (err error) {
 			}
 		}
 		if len(packet.Children) == 3 {
-			err = addControlDescriptions(packet.Children[2])
+			addControlDescriptions(packet.Children[2])
 		}
 	case ApplicationSearchResultDone:
-		err = addDefaultLDAPResponseDescriptions(packet)
+		addDefaultLDAPResponseDescriptions(packet)
 	case ApplicationModifyRequest:
-		err = addRequestDescriptions(packet)
+		addRequestDescriptions(packet)
 	case ApplicationModifyResponse:
 	case ApplicationAddRequest:
-		err = addRequestDescriptions(packet)
+		addRequestDescriptions(packet)
 	case ApplicationAddResponse:
 	case ApplicationDelRequest:
-		err = addRequestDescriptions(packet)
+		addRequestDescriptions(packet)
 	case ApplicationDelResponse:
 	case ApplicationModifyDNRequest:
-		err = addRequestDescriptions(packet)
+		addRequestDescriptions(packet)
 	case ApplicationModifyDNResponse:
 	case ApplicationCompareRequest:
-		err = addRequestDescriptions(packet)
+		addRequestDescriptions(packet)
 	case ApplicationCompareResponse:
 	case ApplicationAbandonRequest:
-		err = addRequestDescriptions(packet)
+		addRequestDescriptions(packet)
 	case ApplicationSearchResultReference:
 	case ApplicationExtendedRequest:
-		err = addRequestDescriptions(packet)
+		addRequestDescriptions(packet)
 	case ApplicationExtendedResponse:
 	}
 
-	return err
+	return nil
 }
 
-func addControlDescriptions(packet *ber.Packet) error {
+func addControlDescriptions(packet *ber.Packet) {
 	packet.Description = "Controls"
 	for _, child := range packet.Children {
 		var value *ber.Packet
@@ -156,7 +159,7 @@ func addControlDescriptions(packet *ber.Packet) error {
 		switch len(child.Children) {
 		case 0:
 			// at least one child is required for control type
-			return fmt.Errorf("at least one child is required for control type")
+			continue
 
 		case 1:
 			// just type, no criticality or value
@@ -185,9 +188,8 @@ func addControlDescriptions(packet *ber.Packet) error {
 
 		default:
 			// more than 3 children is invalid
-			return fmt.Errorf("more than 3 children for control packet found")
+			continue
 		}
-
 		if value == nil {
 			continue
 		}
@@ -195,10 +197,7 @@ func addControlDescriptions(packet *ber.Packet) error {
 		case ControlTypePaging:
 			value.Description += " (Paging)"
 			if value.Value != nil {
-				valueChildren, err := ber.DecodePacketErr(value.Data.Bytes())
-				if err != nil {
-					return fmt.Errorf("failed to decode data bytes: %s", err)
-				}
+				valueChildren := ber.DecodePacket(value.Data.Bytes())
 				value.Data.Truncate(0)
 				value.Value = nil
 				valueChildren.Children[1].Value = valueChildren.Children[1].Data.Bytes()
@@ -211,10 +210,7 @@ func addControlDescriptions(packet *ber.Packet) error {
 		case ControlTypeBeheraPasswordPolicy:
 			value.Description += " (Password Policy - Behera Draft)"
 			if value.Value != nil {
-				valueChildren, err := ber.DecodePacketErr(value.Data.Bytes())
-				if err != nil {
-					return fmt.Errorf("failed to decode data bytes: %s", err)
-				}
+				valueChildren := ber.DecodePacket(value.Data.Bytes())
 				value.Data.Truncate(0)
 				value.Value = nil
 				value.AppendChild(valueChildren)
@@ -224,10 +220,7 @@ func addControlDescriptions(packet *ber.Packet) error {
 				if child.Tag == 0 {
 					//Warning
 					warningPacket := child.Children[0]
-					packet, err := ber.DecodePacketErr(warningPacket.Data.Bytes())
-					if err != nil {
-						return fmt.Errorf("failed to decode data bytes: %s", err)
-					}
+					packet := ber.DecodePacket(warningPacket.Data.Bytes())
 					val, ok := packet.Value.(int64)
 					if ok {
 						if warningPacket.Tag == 0 {
@@ -242,10 +235,7 @@ func addControlDescriptions(packet *ber.Packet) error {
 					}
 				} else if child.Tag == 1 {
 					// Error
-					packet, err := ber.DecodePacketErr(child.Data.Bytes())
-					if err != nil {
-						return fmt.Errorf("failed to decode data bytes: %s", err)
-					}
+					packet := ber.DecodePacket(child.Data.Bytes())
 					val, ok := packet.Value.(int8)
 					if !ok {
 						val = -1
@@ -256,20 +246,18 @@ func addControlDescriptions(packet *ber.Packet) error {
 			}
 		}
 	}
-	return nil
 }
 
-func addRequestDescriptions(packet *ber.Packet) error {
+func addRequestDescriptions(packet *ber.Packet) {
 	packet.Description = "LDAP Request"
 	packet.Children[0].Description = "Message ID"
 	packet.Children[1].Description = ApplicationMap[uint8(packet.Children[1].Tag)]
 	if len(packet.Children) == 3 {
-		return addControlDescriptions(packet.Children[2])
+		addControlDescriptions(packet.Children[2])
 	}
-	return nil
 }
 
-func addDefaultLDAPResponseDescriptions(packet *ber.Packet) error {
+func addDefaultLDAPResponseDescriptions(packet *ber.Packet) {
 	resultCode, _ := getLDAPResultCode(packet)
 	packet.Children[1].Children[0].Description = "Result Code (" + LDAPResultCodeMap[resultCode] + ")"
 	packet.Children[1].Children[1].Description = "Matched DN"
@@ -278,9 +266,8 @@ func addDefaultLDAPResponseDescriptions(packet *ber.Packet) error {
 		packet.Children[1].Children[3].Description = "Referral"
 	}
 	if len(packet.Children) == 3 {
-		return addControlDescriptions(packet.Children[2])
+		addControlDescriptions(packet.Children[2])
 	}
-	return nil
 }
 
 // DebugBinaryFile reads and prints packets from the given filename
@@ -290,13 +277,8 @@ func DebugBinaryFile(fileName string) error {
 		return NewError(ErrorDebugging, err)
 	}
 	ber.PrintBytes(os.Stdout, file, "")
-	packet, err := ber.DecodePacketErr(file)
-	if err != nil {
-		return fmt.Errorf("failed to decode packet: %s", err)
-	}
-	if err := addLDAPDescriptions(packet); err != nil {
-		return err
-	}
+	packet := ber.DecodePacket(file)
+	addLDAPDescriptions(packet)
 	ber.PrintPacket(packet)
 
 	return nil

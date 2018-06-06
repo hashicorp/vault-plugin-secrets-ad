@@ -1,3 +1,7 @@
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package ldap
 
 import (
@@ -249,7 +253,7 @@ func FindControl(controls []Control, controlType string) Control {
 }
 
 // DecodeControl returns a control read from the given packet, or nil if no recognized control can be made
-func DecodeControl(packet *ber.Packet) (Control, error) {
+func DecodeControl(packet *ber.Packet) Control {
 	var (
 		ControlType = ""
 		Criticality = false
@@ -259,7 +263,7 @@ func DecodeControl(packet *ber.Packet) (Control, error) {
 	switch len(packet.Children) {
 	case 0:
 		// at least one child is required for control type
-		return nil, fmt.Errorf("at least one child is required for control type")
+		return nil
 
 	case 1:
 		// just type, no criticality or value
@@ -292,20 +296,17 @@ func DecodeControl(packet *ber.Packet) (Control, error) {
 
 	default:
 		// more than 3 children is invalid
-		return nil, fmt.Errorf("more than 3 children is invalid for controls")
+		return nil
 	}
 
 	switch ControlType {
 	case ControlTypeManageDsaIT:
-		return NewControlManageDsaIT(Criticality), nil
+		return NewControlManageDsaIT(Criticality)
 	case ControlTypePaging:
 		value.Description += " (Paging)"
 		c := new(ControlPaging)
 		if value.Value != nil {
-			valueChildren, err := ber.DecodePacketErr(value.Data.Bytes())
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode data bytes: %s", err)
-			}
+			valueChildren := ber.DecodePacket(value.Data.Bytes())
 			value.Data.Truncate(0)
 			value.Value = nil
 			value.AppendChild(valueChildren)
@@ -317,15 +318,12 @@ func DecodeControl(packet *ber.Packet) (Control, error) {
 		c.PagingSize = uint32(value.Children[0].Value.(int64))
 		c.Cookie = value.Children[1].Data.Bytes()
 		value.Children[1].Value = c.Cookie
-		return c, nil
+		return c
 	case ControlTypeBeheraPasswordPolicy:
 		value.Description += " (Password Policy - Behera)"
 		c := NewControlBeheraPasswordPolicy()
 		if value.Value != nil {
-			valueChildren, err := ber.DecodePacketErr(value.Data.Bytes())
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode data bytes: %s", err)
-			}
+			valueChildren := ber.DecodePacket(value.Data.Bytes())
 			value.Data.Truncate(0)
 			value.Value = nil
 			value.AppendChild(valueChildren)
@@ -337,10 +335,7 @@ func DecodeControl(packet *ber.Packet) (Control, error) {
 			if child.Tag == 0 {
 				//Warning
 				warningPacket := child.Children[0]
-				packet, err := ber.DecodePacketErr(warningPacket.Data.Bytes())
-				if err != nil {
-					return nil, fmt.Errorf("failed to decode data bytes: %s", err)
-				}
+				packet := ber.DecodePacket(warningPacket.Data.Bytes())
 				val, ok := packet.Value.(int64)
 				if ok {
 					if warningPacket.Tag == 0 {
@@ -355,10 +350,7 @@ func DecodeControl(packet *ber.Packet) (Control, error) {
 				}
 			} else if child.Tag == 1 {
 				// Error
-				packet, err := ber.DecodePacketErr(child.Data.Bytes())
-				if err != nil {
-					return nil, fmt.Errorf("failed to decode data bytes: %s", err)
-				}
+				packet := ber.DecodePacket(child.Data.Bytes())
 				val, ok := packet.Value.(int8)
 				if !ok {
 					// what to do?
@@ -369,22 +361,22 @@ func DecodeControl(packet *ber.Packet) (Control, error) {
 				c.ErrorString = BeheraPasswordPolicyErrorMap[c.Error]
 			}
 		}
-		return c, nil
+		return c
 	case ControlTypeVChuPasswordMustChange:
 		c := &ControlVChuPasswordMustChange{MustChange: true}
-		return c, nil
+		return c
 	case ControlTypeVChuPasswordWarning:
 		c := &ControlVChuPasswordWarning{Expire: -1}
 		expireStr := ber.DecodeString(value.Data.Bytes())
 
 		expire, err := strconv.ParseInt(expireStr, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse value as int: %s", err)
+			return nil
 		}
 		c.Expire = expire
 		value.Value = c.Expire
 
-		return c, nil
+		return c
 	default:
 		c := new(ControlString)
 		c.ControlType = ControlType
@@ -392,7 +384,7 @@ func DecodeControl(packet *ber.Packet) (Control, error) {
 		if value != nil {
 			c.ControlValue = value.Value.(string)
 		}
-		return c, nil
+		return c
 	}
 }
 
