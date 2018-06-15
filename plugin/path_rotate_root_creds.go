@@ -12,7 +12,7 @@ func (b *backend) pathRotateCredentials() *framework.Path {
 	return &framework.Path{
 		Pattern: "rotate-root",
 		Callbacks: map[logical.Operation]framework.OperationFunc{
-			logical.UpdateOperation: b.pathRotateCredentialsUpdate,
+			logical.ReadOperation: b.pathRotateCredentialsUpdate,
 		},
 
 		HelpSynopsis:    pathRotateCredentialsUpdateHelpSyn,
@@ -20,7 +20,7 @@ func (b *backend) pathRotateCredentials() *framework.Path {
 	}
 }
 
-func (b *backend) pathRotateCredentialsUpdate(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathRotateCredentialsUpdate(ctx context.Context, req *logical.Request, _ *framework.FieldData) (*logical.Response, error) {
 	engineConf, err := b.readConfig(ctx, req.Storage)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func (b *backend) pathRotateCredentialsUpdate(ctx context.Context, req *logical.
 		return nil, err
 	}
 
-	if err := b.client.UpdatePassword(engineConf.ADConf, engineConf.ADConf.BindDN, newPassword); err != nil {
+	if err := b.client.UpdateRootPassword(engineConf.ADConf, engineConf.ADConf.BindDN, newPassword); err != nil {
 		return nil, err
 	}
 

@@ -282,7 +282,7 @@ func ReadCred(t *testing.T) {
 
 func RotateRootCreds(t *testing.T) {
 	req := &logical.Request{
-		Operation: logical.UpdateOperation,
+		Operation: logical.ReadOperation,
 		Path:      "rotate-root",
 		Storage:   testStorage,
 	}
@@ -348,5 +348,9 @@ func (f *fake) GetPasswordLastSet(conf *ldaputil.ConfigEntry, serviceAccountName
 }
 
 func (f *fake) UpdatePassword(conf *ldaputil.ConfigEntry, serviceAccountName string, newPassword string) error {
+	return nil
+}
+
+func (f *fake) UpdateRootPassword(conf *ldaputil.ConfigEntry, bindDN string, newPassword string) error {
 	return nil
 }

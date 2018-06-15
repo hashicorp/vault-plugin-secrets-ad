@@ -66,6 +66,7 @@ type secretsClient interface {
 	Get(conf *ldaputil.ConfigEntry, serviceAccountName string) (*client.Entry, error)
 	GetPasswordLastSet(conf *ldaputil.ConfigEntry, serviceAccountName string) (time.Time, error)
 	UpdatePassword(conf *ldaputil.ConfigEntry, serviceAccountName string, newPassword string) error
+	UpdateRootPassword(conf *ldaputil.ConfigEntry, bindDN string, newPassword string) error
 }
 
 const backendHelp = `
