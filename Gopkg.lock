@@ -25,10 +25,10 @@
   version = "v1.0.1"
 
 [[projects]]
+  branch = "master"
   name = "github.com/go-ldap/ldap"
   packages = ["."]
-  revision = "bb7a9ca6e4fbc2129e3db588a34bc970ffe811a9"
-  version = "v2.5.1"
+  revision = "ef52f0f48a85a3a669e1f6bdcf90a62b97762952"
 
 [[projects]]
   name = "github.com/golang/protobuf"
