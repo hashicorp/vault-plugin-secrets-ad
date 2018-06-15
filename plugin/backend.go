@@ -32,6 +32,7 @@ func newBackend(client secretsClient) *backend {
 			adBackend.pathRoles(),
 			adBackend.pathListRoles(),
 			adBackend.pathCreds(),
+			adBackend.pathRotateCredentials(),
 		},
 		PathsSpecial: &logical.Paths{
 			SealWrapStorage: []string{

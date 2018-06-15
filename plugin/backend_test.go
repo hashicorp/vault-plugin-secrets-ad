@@ -50,6 +50,9 @@ func TestBackend(t *testing.T) {
 
 	// Exercise all cred endpoints.
 	t.Run("read cred", ReadCred)
+
+	// Exercise root credential rotation.
+	t.Run("rotate root creds", RotateRootCreds)
 }
 
 func WriteConfig(t *testing.T) {
@@ -274,6 +277,21 @@ func ReadCred(t *testing.T) {
 	password := resp.Data["current_password"].(string)
 	if !strings.HasPrefix(password, util.PasswordComplexityPrefix) {
 		t.Fatalf("%s doesn't have the expected complexity prefix of %s", password, util.PasswordComplexityPrefix)
+	}
+}
+
+func RotateRootCreds(t *testing.T) {
+	req := &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      "rotate-root",
+		Storage:   testStorage,
+	}
+	resp, err := testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	if resp != nil {
+		t.Fatal("expected no response because Vault generally doesn't return it for posts")
 	}
 }
 
