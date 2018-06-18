@@ -50,7 +50,7 @@ func (b *backend) pathRotateCredentialsUpdate(ctx context.Context, req *logical.
 		// to roll any passwords, including our own to get back into a state of working. So, we need to roll back to
 		// the last password we successfully got into storage.
 		if rollbackErr := b.rollBackPassword(ctx, engineConf, oldPassword); rollbackErr != nil {
-			return nil, fmt.Errorf("unable to store new password due to %s and unable to return to previous password due to %s, configure a new binddn and bindpassword to restore active directory support", pwdStoringErr, rollbackErr)
+			return nil, fmt.Errorf("unable to store new password due to %s and unable to return to previous password due to %s, configure a new binddn and bindpass to restore active directory function", pwdStoringErr, rollbackErr)
 		}
 		return nil, fmt.Errorf("unable to update password due to storage err: %s", pwdStoringErr)
 	}

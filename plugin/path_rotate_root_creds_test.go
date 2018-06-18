@@ -14,10 +14,8 @@ func TestRollBackPassword(t *testing.T) {
 	}
 
 	b := testBackend
-
 	doneChan := make(chan struct{})
 	ctx := &testContext{doneChan}
-
 	testConf := &configuration{
 		ADConf: &ldaputil.ConfigEntry{
 			BindDN: "cats",
