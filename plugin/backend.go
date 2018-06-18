@@ -21,9 +21,10 @@ func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend,
 
 func newBackend(client secretsClient) *backend {
 	adBackend := &backend{
-		client:    client,
-		roleCache: cache.New(roleCacheExpiration, roleCacheCleanup),
-		credCache: cache.New(credCacheExpiration, credCacheCleanup),
+		client:         client,
+		roleCache:      cache.New(roleCacheExpiration, roleCacheCleanup),
+		credCache:      cache.New(credCacheExpiration, credCacheCleanup),
+		rotateRootLock: new(int32),
 	}
 	adBackend.Backend = &framework.Backend{
 		Help: backendHelp,
@@ -51,9 +52,10 @@ type backend struct {
 
 	client secretsClient
 
-	roleCache *cache.Cache
-	credCache *cache.Cache
-	credLock  sync.Mutex
+	roleCache      *cache.Cache
+	credCache      *cache.Cache
+	credLock       sync.Mutex
+	rotateRootLock *int32
 }
 
 func (b *backend) Invalidate(ctx context.Context, key string) {
