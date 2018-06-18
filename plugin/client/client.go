@@ -130,7 +130,7 @@ func bind(cfg *ADConf, conn ldaputil.Connection) error {
 		if origErr == nil {
 			return nil
 		}
-		if !shouldTryLastPwd(cfg.LastBindPasswordRotation) {
+		if !shouldTryLastPwd(cfg.LastBindPassword, cfg.LastBindPasswordRotation) {
 			return origErr
 		}
 		if err := conn.Bind(fmt.Sprintf("%s@%s", ldaputil.EscapeLDAPValue(cfg.BindDN), cfg.UPNDomain), cfg.LastBindPassword); err != nil {
@@ -145,7 +145,7 @@ func bind(cfg *ADConf, conn ldaputil.Connection) error {
 		if origErr == nil {
 			return nil
 		}
-		if !shouldTryLastPwd(cfg.LastBindPasswordRotation) {
+		if !shouldTryLastPwd(cfg.LastBindPassword, cfg.LastBindPasswordRotation) {
 			return origErr
 		}
 		if err := conn.Bind(cfg.BindDN, cfg.LastBindPassword); err != nil {
@@ -161,6 +161,12 @@ func bind(cfg *ADConf, conn ldaputil.Connection) error {
 // Rather than attempting to catalogue these errors across multiple versions of
 // AD, we simply try the last password if it's been less than a set amount of
 // time since a rotation occurred.
-func shouldTryLastPwd(lastBindPasswordRotation time.Time) bool {
+func shouldTryLastPwd(lastPwd string, lastBindPasswordRotation time.Time) bool {
+	if lastPwd == "" {
+		return false
+	}
+	if lastBindPasswordRotation.Equal(time.Time{}) {
+		return false
+	}
 	return lastBindPasswordRotation.Add(10 * time.Minute).After(time.Now())
 }

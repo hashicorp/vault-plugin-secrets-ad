@@ -137,7 +137,6 @@ func TestUpdatePassword(t *testing.T) {
 	}
 }
 
-// TODO need to test forwards and backwards jsonification
 func emptyConfig() *ADConf {
 	return &ADConf{
 		ConfigEntry: &ldaputil.ConfigEntry{

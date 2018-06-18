@@ -1,12 +1,13 @@
 package client
 
 import (
-	"github.com/hashicorp/vault/helper/ldaputil"
 	"time"
+
+	"github.com/hashicorp/vault/helper/ldaputil"
 )
 
 type ADConf struct {
 	*ldaputil.ConfigEntry
-	LastBindPassword         string
-	LastBindPasswordRotation time.Time
+	LastBindPassword         string    `json:"last_bind_password"`
+	LastBindPasswordRotation time.Time `json:"last_bind_password_rotation"`
 }
