@@ -40,15 +40,17 @@ func main() {
 	}
 }
 
-func newInsecureConfig() *ldaputil.ConfigEntry {
-	return &ldaputil.ConfigEntry{
-		UserDN:        dn,
-		Certificate:   "",
-		InsecureTLS:   true,
-		BindPassword:  password,
-		TLSMinVersion: "tls12",
-		TLSMaxVersion: "tls12",
-		Url:           rawURL,
-		BindDN:        username,
+func newInsecureConfig() *client.ADConf {
+	return &client.ADConf{
+		ConfigEntry: &ldaputil.ConfigEntry{
+			UserDN:        dn,
+			Certificate:   "",
+			InsecureTLS:   true,
+			BindPassword:  password,
+			TLSMinVersion: "tls12",
+			TLSMaxVersion: "tls12",
+			Url:           rawURL,
+			BindDN:        username,
+		},
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
 	"github.com/hashicorp/vault/helper/ldaputil"
 	"github.com/hashicorp/vault/logical"
@@ -30,7 +31,7 @@ func (b *backend) readConfig(ctx context.Context, storage logical.Storage) (*con
 	if entry == nil {
 		return nil, nil
 	}
-	config := &configuration{&passwordConf{}, &ldaputil.ConfigEntry{}}
+	config := &configuration{&passwordConf{}, &client.ADConf{}}
 	if err := entry.DecodeJSON(config); err != nil {
 		return nil, err
 	}
@@ -115,7 +116,7 @@ func (b *backend) configUpdateOperation(ctx context.Context, req *logical.Reques
 		Formatter: formatter,
 	}
 
-	config := &configuration{passwordConf, activeDirectoryConf}
+	config := &configuration{passwordConf, &client.ADConf{ConfigEntry: activeDirectoryConf}}
 	entry, err := logical.StorageEntryJSON(configStorageKey, config)
 	if err != nil {
 		return nil, err

@@ -137,12 +137,15 @@ func TestUpdatePassword(t *testing.T) {
 	}
 }
 
-func emptyConfig() *ldaputil.ConfigEntry {
-	return &ldaputil.ConfigEntry{
-		UserDN:       "dc=example,dc=com",
-		Url:          "ldap://127.0.0.1",
-		BindDN:       "cats",
-		BindPassword: "cats",
+// TODO need to test forwards and backwards jsonification
+func emptyConfig() *ADConf {
+	return &ADConf{
+		ConfigEntry: &ldaputil.ConfigEntry{
+			UserDN:       "dc=example,dc=com",
+			Url:          "ldap://127.0.0.1",
+			BindDN:       "cats",
+			BindPassword: "cats",
+		},
 	}
 }
 
