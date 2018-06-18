@@ -50,6 +50,9 @@ func TestBackend(t *testing.T) {
 
 	// Exercise all cred endpoints.
 	t.Run("read cred", ReadCred)
+
+	// Exercise root credential rotation.
+	t.Run("rotate root creds", RotateRootCreds)
 }
 
 func WriteConfig(t *testing.T) {
@@ -277,6 +280,21 @@ func ReadCred(t *testing.T) {
 	}
 }
 
+func RotateRootCreds(t *testing.T) {
+	req := &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      "rotate-root",
+		Storage:   testStorage,
+	}
+	resp, err := testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	if resp != nil {
+		t.Fatal("expected no response because Vault generally doesn't return it for posts")
+	}
+}
+
 const validCertificate = `
 -----BEGIN CERTIFICATE-----
 MIIF7zCCA9egAwIBAgIJAOY2qjn64Qq5MA0GCSqGSIb3DQEBCwUAMIGNMQswCQYD
@@ -330,5 +348,9 @@ func (f *fake) GetPasswordLastSet(conf *ldaputil.ConfigEntry, serviceAccountName
 }
 
 func (f *fake) UpdatePassword(conf *ldaputil.ConfigEntry, serviceAccountName string, newPassword string) error {
+	return nil
+}
+
+func (f *fake) UpdateRootPassword(conf *ldaputil.ConfigEntry, bindDN string, newPassword string) error {
 	return nil
 }
