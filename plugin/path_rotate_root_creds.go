@@ -40,9 +40,9 @@ func (b *backend) pathRotateCredentialsUpdate(ctx context.Context, req *logical.
 	oldPassword := engineConf.ADConf.BindPassword
 
 	if !atomic.CompareAndSwapInt32(b.rotateRootLock, 0, 1) {
-		b.Logger().Warn("rotate-root operation is already in progress")
-		// Respond with a 204 since this is not an error state.
-		return nil, nil
+		resp := &logical.Response{}
+		resp.AddWarning("Root password rotation is already in progress.")
+		return resp, nil
 	}
 	defer atomic.CompareAndSwapInt32(b.rotateRootLock, 1, 0)
 
