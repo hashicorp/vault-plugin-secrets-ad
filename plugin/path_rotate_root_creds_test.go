@@ -17,8 +17,10 @@ func TestRollBackPassword(t *testing.T) {
 	doneChan := make(chan struct{})
 	ctx := &testContext{doneChan}
 	testConf := &configuration{
-		ADConf: &ldaputil.ConfigEntry{
-			BindDN: "cats",
+		ADConf: &client.ADConf{
+			ConfigEntry: &ldaputil.ConfigEntry{
+				BindDN: "cats",
+			},
 		},
 	}
 
@@ -74,18 +76,18 @@ func (c *testContext) Value(key interface{}) interface{} {
 
 type badFake struct{}
 
-func (f *badFake) Get(conf *ldaputil.ConfigEntry, serviceAccountName string) (*client.Entry, error) {
+func (f *badFake) Get(conf *client.ADConf, serviceAccountName string) (*client.Entry, error) {
 	return nil, errors.New("nope")
 }
 
-func (f *badFake) GetPasswordLastSet(conf *ldaputil.ConfigEntry, serviceAccountName string) (time.Time, error) {
+func (f *badFake) GetPasswordLastSet(conf *client.ADConf, serviceAccountName string) (time.Time, error) {
 	return time.Time{}, errors.New("nope")
 }
 
-func (f *badFake) UpdatePassword(conf *ldaputil.ConfigEntry, serviceAccountName string, newPassword string) error {
+func (f *badFake) UpdatePassword(conf *client.ADConf, serviceAccountName string, newPassword string) error {
 	return errors.New("nope")
 }
 
-func (f *badFake) UpdateRootPassword(conf *ldaputil.ConfigEntry, bindDN string, newPassword string) error {
+func (f *badFake) UpdateRootPassword(conf *client.ADConf, bindDN string, newPassword string) error {
 	return errors.New("nope")
 }

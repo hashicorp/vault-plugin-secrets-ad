@@ -10,7 +10,6 @@ import (
 	"github.com/go-ldap/ldap"
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
-	"github.com/hashicorp/vault/helper/ldaputil"
 	"github.com/hashicorp/vault/logical"
 )
 
@@ -334,7 +333,7 @@ Beq3QOqp2+dga36IzQybzPQ8QtotrpSJ3q82zztEvyWiJ7E=
 
 type fake struct{}
 
-func (f *fake) Get(conf *ldaputil.ConfigEntry, serviceAccountName string) (*client.Entry, error) {
+func (f *fake) Get(conf *client.ADConf, serviceAccountName string) (*client.Entry, error) {
 	entry := &ldap.Entry{}
 	entry.Attributes = append(entry.Attributes, &ldap.EntryAttribute{
 		Name:   client.FieldRegistry.PasswordLastSet.String(),
@@ -343,14 +342,14 @@ func (f *fake) Get(conf *ldaputil.ConfigEntry, serviceAccountName string) (*clie
 	return client.NewEntry(entry), nil
 }
 
-func (f *fake) GetPasswordLastSet(conf *ldaputil.ConfigEntry, serviceAccountName string) (time.Time, error) {
+func (f *fake) GetPasswordLastSet(conf *client.ADConf, serviceAccountName string) (time.Time, error) {
 	return time.Time{}, nil
 }
 
-func (f *fake) UpdatePassword(conf *ldaputil.ConfigEntry, serviceAccountName string, newPassword string) error {
+func (f *fake) UpdatePassword(conf *client.ADConf, serviceAccountName string, newPassword string) error {
 	return nil
 }
 
-func (f *fake) UpdateRootPassword(conf *ldaputil.ConfigEntry, bindDN string, newPassword string) error {
+func (f *fake) UpdateRootPassword(conf *client.ADConf, bindDN string, newPassword string) error {
 	return nil
 }

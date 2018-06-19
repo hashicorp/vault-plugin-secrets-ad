@@ -7,7 +7,6 @@ import (
 
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
-	"github.com/hashicorp/vault/helper/ldaputil"
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/framework"
 	"github.com/patrickmn/go-cache"
@@ -65,10 +64,10 @@ func (b *backend) Invalidate(ctx context.Context, key string) {
 
 // Wraps the *util.SecretsClient in an interface to support testing.
 type secretsClient interface {
-	Get(conf *ldaputil.ConfigEntry, serviceAccountName string) (*client.Entry, error)
-	GetPasswordLastSet(conf *ldaputil.ConfigEntry, serviceAccountName string) (time.Time, error)
-	UpdatePassword(conf *ldaputil.ConfigEntry, serviceAccountName string, newPassword string) error
-	UpdateRootPassword(conf *ldaputil.ConfigEntry, bindDN string, newPassword string) error
+	Get(conf *client.ADConf, serviceAccountName string) (*client.Entry, error)
+	GetPasswordLastSet(conf *client.ADConf, serviceAccountName string) (time.Time, error)
+	UpdatePassword(conf *client.ADConf, serviceAccountName string, newPassword string) error
+	UpdateRootPassword(conf *client.ADConf, bindDN string, newPassword string) error
 }
 
 const backendHelp = `
