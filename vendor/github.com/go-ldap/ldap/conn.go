@@ -1,3 +1,7 @@
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package ldap
 
 import (
@@ -80,7 +84,7 @@ type Conn struct {
 	conn                net.Conn
 	isTLS               bool
 	closing             uint32
-	closeErr            atomic.Value
+	closeErr            atomicValue
 	isStartingTLS       bool
 	Debug               debugging
 	chanConfirm         chan struct{}
@@ -117,8 +121,15 @@ func Dial(network, addr string) (*Conn, error) {
 // DialTLS connects to the given address on the given network using tls.Dial
 // and then returns a new Conn for the connection.
 func DialTLS(network, addr string, config *tls.Config) (*Conn, error) {
-	c, err := tls.DialWithDialer(&net.Dialer{Timeout: DefaultTimeout}, network, addr, config)
+	dc, err := net.DialTimeout(network, addr, DefaultTimeout)
 	if err != nil {
+		return nil, NewError(ErrorNetwork, err)
+	}
+	c := tls.Client(dc, config)
+	err = c.Handshake()
+	if err != nil {
+		// Handshake error, close the established connection before we return an error
+		dc.Close()
 		return nil, NewError(ErrorNetwork, err)
 	}
 	conn := NewConn(c, true)

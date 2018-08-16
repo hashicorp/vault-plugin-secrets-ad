@@ -41,8 +41,6 @@ type AddRequest struct {
 	DN string
 	// Attributes list the attributes of the new entry
 	Attributes []Attribute
-	// Controls hold optional controls to send with the request
-	Controls []Control
 }
 
 func (a AddRequest) encode() *ber.Packet {
@@ -62,10 +60,9 @@ func (a *AddRequest) Attribute(attrType string, attrVals []string) {
 }
 
 // NewAddRequest returns an AddRequest for the given DN, with no attributes
-func NewAddRequest(dn string, controls []Control) *AddRequest {
+func NewAddRequest(dn string) *AddRequest {
 	return &AddRequest{
-		DN:       dn,
-		Controls: controls,
+		DN: dn,
 	}
 
 }
@@ -75,9 +72,6 @@ func (l *Conn) Add(addRequest *AddRequest) error {
 	packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Request")
 	packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, l.nextMessageID(), "MessageID"))
 	packet.AppendChild(addRequest.encode())
-	if len(addRequest.Controls) > 0 {
-		packet.AppendChild(encodeControls(addRequest.Controls))
-	}
 
 	l.Debug.PrintPacket(packet)
 

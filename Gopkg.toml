@@ -38,8 +38,8 @@
   name = "github.com/hashicorp/go-uuid"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/hashicorp/vault"
+  branch = "master"
 
 [[constraint]]
   name = "github.com/patrickmn/go-cache"

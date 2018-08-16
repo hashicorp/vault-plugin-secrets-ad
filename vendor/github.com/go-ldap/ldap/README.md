@@ -27,7 +27,6 @@ Import the latest version with:
  - Modify Requests / Responses
  - Add Requests / Responses
  - Delete Requests / Responses
- - Modify DN Requests / Responses
 
 ## Examples:
 
