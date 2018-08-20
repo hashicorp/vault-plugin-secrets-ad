@@ -85,24 +85,3 @@ func TestTTLTooHigh(t *testing.T) {
 		t.Fatal("should error when ttl is too high")
 	}
 }
-
-func TestNegativeTTL(t *testing.T) {
-	passwordConf := &passwordConf{
-		TTL:    10,
-		MaxTTL: maxTTLInt,
-		Length: defaultPasswordLength,
-	}
-
-	fieldData := &framework.FieldData{
-		Raw: map[string]interface{}{
-			"service_account_name": "kibana@example.com",
-			"ttl": -100,
-		},
-		Schema: schema,
-	}
-
-	_, err := getValidatedTTL(passwordConf, fieldData)
-	if err == nil {
-		t.Fatal("should error then ttl is negative")
-	}
-}
