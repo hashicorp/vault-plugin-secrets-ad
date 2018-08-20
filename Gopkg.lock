@@ -2,7 +2,7 @@
 
 
 [[projects]]
-  digest = "1:a69ab3f1445ffd4815add4bd31ba05b65b3b9fec1ade5057d5d717f30e6efd6d"
+  digest = "1:3420c85b643e3a53acf342c9e3c0507d0e1c018de7f644726a1951f584c7bf55"
   name = "github.com/SermoDigital/jose"
   packages = [
     ".",
@@ -31,15 +31,15 @@
   version = "v1.0.1"
 
 [[projects]]
-  digest = "1:93aaeb913621a3a53aaa78592c00f46d63e3bb0ea76e2d9b07327b50959a5778"
+  branch = "master"
+  digest = "1:11ce972f2cb161f9aafdba55a319266294b2aabe6f846bec40d408250f02db33"
   name = "github.com/go-ldap/ldap"
   packages = ["."]
   pruneopts = "UT"
-  revision = "bb7a9ca6e4fbc2129e3db588a34bc970ffe811a9"
-  version = "v2.5.1"
+  revision = "dc997b2033d4b4ab6de47b555eaf76888a81d33d"
 
 [[projects]]
-  digest = "1:17fe264ee908afc795734e8c4e63db2accabaf57326dbf21763a7d6b86096260"
+  digest = "1:cb22af0ed7c72d495d8be1106233ee553898950f15fd3f5404406d44c2e86888"
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
@@ -118,7 +118,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:45aad874d3c7d5e8610427c81870fb54970b981692930ec2a319ce4cb89d7a00"
+  digest = "1:35e9b9d8a799b6d4d4196f19cba3b0ffabf3c96b43eaedf388263d033c066616"
   name = "github.com/hashicorp/go-rootcerts"
   packages = ["."]
   pruneopts = "UT"
@@ -161,7 +161,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:12247a2e99a060cc692f6680e5272c8adf0b8f572e6bce0d7095e624c958a240"
+  digest = "1:8951fe6e358876736d8fa1f3992624fdbb2dec6bc49401c1381d1ef8abbb544f"
   name = "github.com/hashicorp/hcl"
   packages = [
     ".",
@@ -179,7 +179,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:8ac1f0714a6c766a3ed7d135146260b989985a9726ea50e2e40aecf9a4a85965"
+  digest = "1:49245535da6c7334af5c58144516f7d22d248ea7a6bc33d04a8178b91a202622"
   name = "github.com/hashicorp/vault"
   packages = [
     "api",
@@ -269,7 +269,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:b5c3834d33445efdc5a8dcb154bed9e4c211edadbf02f6f5cc20c5e9be26a499"
+  digest = "1:4acd3425fa1fd35ffd8fbf7f7c7be85659b73a8061a355bb2e511915f90694b4"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -292,7 +292,7 @@
   revision = "1c9583448a9c3aa0f9a6a5241bf73c0bd8aafded"
 
 [[projects]]
-  digest = "1:e5a8511f063c38c51ab9ab80e718e9149f692652aeb4e393a8c020dd1bf38ca2"
+  digest = "1:fd3be8b8cefaa7cecec4ba9af529c3c956b9fed4cb4ea7f74b4589328a43bf5d"
   name = "golang.org/x/text"
   packages = [
     "collate",
@@ -337,7 +337,7 @@
   revision = "d0a8f471bba2dbb160885b0000d814ee5d559bad"
 
 [[projects]]
-  digest = "1:047efbc3c9a51f3002b0002f92543857d372654a676fb6b01931982cd80467dd"
+  digest = "1:48d3dac13b348371174b07bfc2fc9b6df2d57f39a7412509275abc692df0da01"
   name = "google.golang.org/grpc"
   packages = [
     ".",
