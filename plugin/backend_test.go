@@ -181,7 +181,7 @@ func WriteRole(t *testing.T) {
 		Storage:   testStorage,
 		Data: map[string]interface{}{
 			"service_account_name": "tester@example.com",
-			"ttl": 10,
+			"ttl":                  10,
 		},
 	}
 	resp, err := testBackend.HandleRequest(ctx, req)

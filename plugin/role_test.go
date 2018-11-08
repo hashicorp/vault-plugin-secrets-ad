@@ -75,7 +75,7 @@ func TestTTLTooHigh(t *testing.T) {
 	fieldData := &framework.FieldData{
 		Raw: map[string]interface{}{
 			"service_account_name": "kibana@example.com",
-			"ttl": 100,
+			"ttl":                  100,
 		},
 		Schema: schema,
 	}
