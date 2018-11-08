@@ -81,11 +81,11 @@ $ vault server -config=path/to/config.json ...
 Once the server is started, register the plugin in the Vault server's [plugin catalog](https://www.vaultproject.io/docs/internals/plugins.html#plugin-catalog):
 
 ```sh
-$ vault write sys/plugins/catalog/ad \
+$ vault write sys/plugins/catalog/secret/custom-ad \
         sha_256=<expected SHA256 Hex value of the plugin binary> \
-        command="vault-plugin-secrets-ad"
+        command="vault-plugin-secrets-active-directory"
 ...
-Success! Data written to: sys/plugins/catalog/ad
+Success! Data written to: sys/plugins/catalog/secret/custom-ad
 ```
 
 Note you should generate a new sha256 checksum if you have made changes
@@ -97,13 +97,13 @@ openssl dgst -sha256 $GOPATH/vault-plugin-secrets-ad
 SHA256(.../go/bin/vault-plugin-secrets-ad)= 896c13c0f5305daed381952a128322e02bc28a57d0c862a78cbc2ea66e8c6fa1
 ```
 
-Enable the auth plugin backend using the secrets enable plugin command:
+Enable the secrets plugin backend using the secrets enable plugin command:
 
 ```sh
-$ vault secrets enable -plugin-name='ad' plugin
+$ vault secrets enable custom-ad
 ...
 
-Successfully enabled 'plugin' at 'ad'!
+Successfully enabled 'plugin' at 'custom-ad'!
 ```
 
 #### Tests
