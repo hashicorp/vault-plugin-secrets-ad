@@ -150,10 +150,10 @@ func taskStorageKey(backendUUID string, task *Task) (string, error) {
 		return "", err
 	}
 
-	// - The taskTrackerStorageKey field is included to namespace everything for these task managers.
-	// - The backendUUID is included because there may be multiple instances of the expiration manager,
-	//     and we don't want different managers to clobber each other's storage.
-	//     We prevent this by using the mount path, which will differ for each instance of a backend.
+	// - The taskTrackerStorageKey field is included to namespace everything for these task trackers.
+	// - The backendUUID is included because there may be multiple instances of the task tracker,
+	//     and we don't want different trackers to clobber each other's storage.
+	//     We prevent this by using the backend UUID, which will differ for each instance of a backend.
 	// - The type field is included because there may be up to one revocation task and up to one rotation task.
 	// - The identifier is included so its key will replace any previous tasks with the same identifier.
 	return fmt.Sprintf("%s/%s/%s/%s", taskTrackerStorageKey, backendUUID, task.Type.String(), task.Identifier), nil
