@@ -13,17 +13,18 @@ import (
 )
 
 func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend, error) {
-	backend := newBackend(util.NewSecretsClient(conf.Logger))
+	backend := newBackend(conf, util.NewSecretsClient(conf.Logger))
 	backend.Setup(ctx, conf)
 	return backend, nil
 }
 
-func newBackend(client secretsClient) *backend {
+func newBackend(conf *logical.BackendConfig, client secretsClient) *backend {
 	adBackend := &backend{
 		client:         client,
 		roleCache:      cache.New(roleCacheExpiration, roleCacheCleanup),
 		credCache:      cache.New(credCacheExpiration, credCacheCleanup),
 		rotateRootLock: new(int32),
+		taskTracker:    NewTaskTracker(conf.Logger, conf.BackendUUID),
 	}
 	adBackend.Backend = &framework.Backend{
 		Help: backendHelp,
@@ -40,8 +41,9 @@ func newBackend(client secretsClient) *backend {
 				credPrefix,
 			},
 		},
-		Invalidate:  adBackend.Invalidate,
-		BackendType: logical.TypeLogical,
+		Invalidate:   adBackend.Invalidate,
+		BackendType:  logical.TypeLogical,
+		PeriodicFunc: adBackend.taskTracker.PeriodicFunc,
 	}
 	return adBackend
 }
@@ -55,6 +57,8 @@ type backend struct {
 	credCache      *cache.Cache
 	credLock       sync.Mutex
 	rotateRootLock *int32
+
+	taskTracker *TaskTracker
 }
 
 func (b *backend) Invalidate(ctx context.Context, key string) {

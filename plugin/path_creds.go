@@ -99,12 +99,12 @@ func (b *backend) credReadOperation(ctx context.Context, req *logical.Request, f
 	case role.LastVaultRotation == unset:
 		// We've never managed this cred before.
 		// We need to rotate the password so Vault will know it.
-		resp, respErr = b.generateAndReturnCreds(ctx, req.Storage, roleName, role, cred)
+		resp, respErr = b.generateAndReturnCreds(ctx, req.Storage, roleName, cred)
 
 	case role.PasswordLastSet.After(role.LastVaultRotation.Add(passwordLastSetBuffer)):
 		// Someone has manually rotated the password in Active Directory since we last rolled it.
 		// We need to rotate it now so Vault will know it and be able to return it.
-		resp, respErr = b.generateAndReturnCreds(ctx, req.Storage, roleName, role, cred)
+		resp, respErr = b.generateAndReturnCreds(ctx, req.Storage, roleName, cred)
 
 	default:
 		// Since we should know the last password, let's retrieve it now so we can return it with the new one.
@@ -133,7 +133,7 @@ func (b *backend) credReadOperation(ctx context.Context, req *logical.Request, f
 		now := time.Now().UTC()
 		shouldBeRolled := role.LastVaultRotation.Add(time.Duration(role.TTL) * time.Second) // already in UTC
 		if now.After(shouldBeRolled) {
-			resp, respErr = b.generateAndReturnCreds(ctx, req.Storage, roleName, role, cred)
+			resp, respErr = b.generateAndReturnCreds(ctx, req.Storage, roleName, cred)
 		} else {
 			resp = &logical.Response{
 				Data: cred,
@@ -146,13 +146,25 @@ func (b *backend) credReadOperation(ctx context.Context, req *logical.Request, f
 	return resp, nil
 }
 
-func (b *backend) generateAndReturnCreds(ctx context.Context, storage logical.Storage, roleName string, role *backendRole, previousCred map[string]interface{}) (*logical.Response, error) {
+func (b *backend) generateAndReturnCreds(ctx context.Context, storage logical.Storage, roleName string, previousCred map[string]interface{}) (*logical.Response, error) {
 	engineConf, err := b.readConfig(ctx, storage)
 	if err != nil {
 		return nil, err
 	}
 	if engineConf == nil {
 		return nil, errors.New("the config is currently unset")
+	}
+
+	// Although role was available to many callers and could be passed in,
+	// we check it here to make sure it still exists and isn't nil. This is
+	// to prevent the Task Manager from forever rotating the creds of roles
+	// that no longer exist.
+	role, err := b.readRole(ctx, storage, roleName)
+	if err != nil {
+		return nil, err
+	}
+	if role == nil {
+		return nil, nil
 	}
 
 	newPassword, err := util.GeneratePassword(engineConf.PasswordConf.Formatter, engineConf.PasswordConf.Length)
@@ -187,6 +199,23 @@ func (b *backend) generateAndReturnCreds(ctx context.Context, storage logical.St
 	if previousCred["current_password"] != nil {
 		cred["last_password"] = previousCred["current_password"]
 	}
+
+	// Use our TaskTracker to rotate this secret when it expires.
+	futureRotation := &Task{
+		// There should be only one rotation task per service account, which is why it's used as the identifier here.
+		// If other threads later create future rotations, the most recent one will be the only one kept. That's
+		// intentional.
+		Identifier:   role.ServiceAccountName,
+		Type:         TaskTypeRotation,
+		ExecuteAfter: role.LastVaultRotation.Add(time.Duration(role.TTL) * time.Second),
+		Execute: func(executeCtx context.Context, executeReq *logical.Request) error {
+			if _, err := b.generateAndReturnCreds(executeCtx, executeReq.Storage, roleName, previousCred); err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	b.taskTracker.Upsert(ctx, storage, futureRotation)
 
 	// Cache and save the cred.
 	entry, err := logical.StorageEntryJSON(storageKey+"/"+roleName, cred)
