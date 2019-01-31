@@ -55,3 +55,6 @@ tags
 .idea
 *.ipr
 *.iml
+
+# binary
+vault-plugin-secrets-ad
