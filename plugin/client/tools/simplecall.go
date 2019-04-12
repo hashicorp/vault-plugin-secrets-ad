@@ -36,7 +36,7 @@ func main() {
 
 	fmt.Printf("found %d entries:\n", len(entries))
 	for _, entry := range entries {
-		fmt.Printf("%s\n", entry)
+		fmt.Printf("%+v\n", entry)
 	}
 }
 
