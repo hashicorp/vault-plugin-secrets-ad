@@ -34,7 +34,7 @@ func TestSearch(t *testing.T) {
 	}
 
 	if len(entries) != 1 {
-		t.Fatalf("only one entry was provided, but multiple were found: %s", entries)
+		t.Fatalf("only one entry was provided, but multiple were found: %+v", entries)
 	}
 	entry := entries[0]
 
