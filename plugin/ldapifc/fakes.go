@@ -6,7 +6,7 @@ import (
 	"reflect"
 
 	"github.com/go-ldap/ldap"
-	"github.com/hashicorp/vault/helper/ldaputil"
+	"github.com/hashicorp/vault/sdk/helper/ldaputil"
 )
 
 // FakeLDAPClient can be used to inspect the LDAP requests that have been constructed,

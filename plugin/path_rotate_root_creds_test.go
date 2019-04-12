@@ -3,7 +3,7 @@ package plugin
 import (
 	"github.com/go-errors/errors"
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
-	"github.com/hashicorp/vault/helper/ldaputil"
+	"github.com/hashicorp/vault/sdk/helper/ldaputil"
 	"testing"
 	"time"
 )
