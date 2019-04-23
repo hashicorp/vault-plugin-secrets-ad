@@ -109,13 +109,13 @@ func (b *backend) credReadOperation(ctx context.Context, req *logical.Request, f
 		resp, respErr = b.generateAndReturnCreds(ctx, req.Storage, roleName, role, cred)
 
 	default:
-		b.Logger().Debug("starting a regular rotation")
+		b.Logger().Debug("determining whether to rotate credential")
 		credIfc, found := b.credCache.Get(roleName)
 		if found {
-			b.Logger().Debug("using cached credential")
+			b.Logger().Debug("checking cached credential")
 			cred = credIfc.(map[string]interface{})
 		} else {
-			b.Logger().Debug("using stored credential")
+			b.Logger().Debug("checking stored credential")
 			entry, err := req.Storage.Get(ctx, storageKey+"/"+roleName)
 			if err != nil {
 				return nil, err
@@ -173,9 +173,11 @@ func (b *backend) generateAndReturnCreds(ctx context.Context, storage logical.St
 
 	// Time recorded is in UTC for easier user comparison to AD's last rotated time, which is set to UTC by Microsoft.
 	role.LastVaultRotation = time.Now().UTC()
-	if err := b.writeRole(ctx, storage, roleName, role); err != nil {
+	if err := b.writeRoleToStorage(ctx, storage, roleName, role); err != nil {
 		return nil, err
 	}
+	// Cache the full role to minimize Vault storage calls.
+	b.roleCache.SetDefault(roleName, role)
 
 	// Although a service account name is typically my_app@example.com,
 	// the username it uses is just my_app, or everything before the @.
