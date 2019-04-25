@@ -60,12 +60,13 @@ func WriteConfig(t *testing.T) {
 		Path:      configPath,
 		Storage:   testStorage,
 		Data: map[string]interface{}{
-			"binddn":      "tester",
-			"password":    "pa$$w0rd",
-			"url":         "ldap://138.91.247.105",
-			"certificate": validCertificate,
-			"userdn":      "dc=example,dc=com",
-			"formatter":   "mycustom{{PASSWORD}}",
+			"binddn":                       "tester",
+			"password":                     "pa$$w0rd",
+			"url":                          "ldap://138.91.247.105",
+			"certificate":                  validCertificate,
+			"userdn":                       "dc=example,dc=com",
+			"formatter":                    "mycustom{{PASSWORD}}",
+			"out_of_band_rotation_seconds": 5,
 		},
 	}
 	resp, err := testBackend.HandleRequest(testCtx, req)
@@ -131,6 +132,10 @@ func ReadConfig(t *testing.T) {
 
 	if resp.Data["formatter"] != "mycustom{{PASSWORD}}" {
 		t.Fatalf("received unexpected formatter of \"%d\"", resp.Data["formatter"])
+	}
+
+	if resp.Data["out_of_band_rotation_seconds"] != 5 {
+		t.Fatalf(`received unexpected seconds of %d`, resp.Data["out_of_band_rotation_seconds"])
 	}
 }
 

@@ -150,15 +150,16 @@ func (b *backend) configReadOperation(ctx context.Context, req *logical.Request,
 	// as we lean away from returning sensitive information unless it's absolutely necessary.
 	// Also, we don't return the full ADConf here because not all parameters are used by this engine.
 	configMap := map[string]interface{}{
-		"url":             config.ADConf.Url,
-		"starttls":        config.ADConf.StartTLS,
-		"insecure_tls":    config.ADConf.InsecureTLS,
-		"certificate":     config.ADConf.Certificate,
-		"binddn":          config.ADConf.BindDN,
-		"userdn":          config.ADConf.UserDN,
-		"upndomain":       config.ADConf.UPNDomain,
-		"tls_min_version": config.ADConf.TLSMinVersion,
-		"tls_max_version": config.ADConf.TLSMaxVersion,
+		"url":                          config.ADConf.Url,
+		"starttls":                     config.ADConf.StartTLS,
+		"insecure_tls":                 config.ADConf.InsecureTLS,
+		"certificate":                  config.ADConf.Certificate,
+		"binddn":                       config.ADConf.BindDN,
+		"userdn":                       config.ADConf.UserDN,
+		"upndomain":                    config.ADConf.UPNDomain,
+		"tls_min_version":              config.ADConf.TLSMinVersion,
+		"tls_max_version":              config.ADConf.TLSMaxVersion,
+		"out_of_band_rotation_seconds": config.PasswordLastSetBuffer,
 	}
 	if !config.ADConf.LastBindPasswordRotation.Equal(time.Time{}) {
 		configMap["last_bind_password_rotation"] = config.ADConf.LastBindPasswordRotation
