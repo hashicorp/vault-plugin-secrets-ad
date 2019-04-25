@@ -32,7 +32,7 @@ func (b *backend) readConfig(ctx context.Context, storage logical.Storage) (*con
 	if entry == nil {
 		return nil, nil
 	}
-	config := &configuration{&passwordConf{}, &client.ADConf{}}
+	config := &configuration{&passwordConf{}, &client.ADConf{}, 0}
 	if err := entry.DecodeJSON(config); err != nil {
 		return nil, err
 	}
@@ -72,6 +72,11 @@ func (b *backend) configFields() map[string]*framework.FieldSchema {
 		Type:        framework.TypeString,
 		Description: `Text to insert the password into, ex. "customPrefix{{PASSWORD}}customSuffix".`,
 	}
+	fields["out_of_band_rotation_seconds"] = &framework.FieldSchema{
+		Type:        framework.TypeDurationSecond,
+		Description: "The number of seconds after a Vault rotation where, if Active Directory shows a later rotation, it should be considered out-of-band.",
+		Default:     1,
+	}
 	return fields
 }
 
@@ -90,6 +95,7 @@ func (b *backend) configUpdateOperation(ctx context.Context, req *logical.Reques
 	maxTTL := fieldData.Get("max_ttl").(int)
 	length := fieldData.Get("length").(int)
 	formatter := fieldData.Get("formatter").(string)
+	passwordLastSetBuffer := fieldData.Get("out_of_band_rotation_seconds").(int)
 
 	if ttl == 0 {
 		ttl = int(b.System().DefaultLeaseTTL().Seconds())
@@ -117,7 +123,7 @@ func (b *backend) configUpdateOperation(ctx context.Context, req *logical.Reques
 		Formatter: formatter,
 	}
 
-	config := &configuration{passwordConf, &client.ADConf{ConfigEntry: activeDirectoryConf}}
+	config := &configuration{passwordConf, &client.ADConf{ConfigEntry: activeDirectoryConf}, passwordLastSetBuffer}
 	entry, err := logical.StorageEntryJSON(configStorageKey, config)
 	if err != nil {
 		return nil, err
