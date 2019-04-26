@@ -94,11 +94,11 @@ func (b *backend) credReadOperation(ctx context.Context, req *logical.Request, f
 	switch {
 
 	case role.LastVaultRotation == unset:
-		b.Logger().Debug("rotating password for the first time so Vault will know it")
+		b.Logger().Info("rotating password for the first time so Vault will know it")
 		resp, respErr = b.generateAndReturnCreds(ctx, engineConf, req.Storage, roleName, role, cred)
 
-	case role.PasswordLastSet.After(role.LastVaultRotation.Add(time.Second * time.Duration(engineConf.PasswordLastSetBuffer))):
-		b.Logger().Debug(fmt.Sprintf(
+	case role.PasswordLastSet.After(role.LastVaultRotation.Add(time.Second * time.Duration(engineConf.LastRotationTolerance))):
+		b.Logger().Warn(fmt.Sprintf(
 			"Vault rotated the password at %s, but it was rotated in AD later at %s, so rotating it again so Vault will know it",
 			role.LastVaultRotation.String(), role.PasswordLastSet.String()),
 		)
@@ -131,7 +131,7 @@ func (b *backend) credReadOperation(ctx context.Context, req *logical.Request, f
 		now := time.Now().UTC()
 		shouldBeRolled := role.LastVaultRotation.Add(time.Duration(role.TTL) * time.Second) // already in UTC
 		if now.After(shouldBeRolled) {
-			b.Logger().Debug(fmt.Sprintf(
+			b.Logger().Info(fmt.Sprintf(
 				"last Vault rotation was at %s, and since the TTL is %d and it's now %s, it's time to rotate it",
 				role.LastVaultRotation.String(), role.TTL, now.String()),
 			)

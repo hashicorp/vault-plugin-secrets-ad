@@ -7,5 +7,5 @@ import (
 type configuration struct {
 	PasswordConf          *passwordConf
 	ADConf                *client.ADConf
-	PasswordLastSetBuffer int
+	LastRotationTolerance int
 }
