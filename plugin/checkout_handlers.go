@@ -3,10 +3,10 @@ package plugin
 import (
 	"context"
 	"errors"
-	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
-	"github.com/hashicorp/vault/sdk/framework"
 	"time"
 
+	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
+	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
