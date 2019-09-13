@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -195,7 +196,7 @@ func TestPasswordHandlerWALHandling(t *testing.T) {
 
 	// Now retry them with a non-error-throwing secrets client to simulate that transient errs
 	// have ceased.
-	retryFunc := retryFailedPasswordUpdates(&fakeSecretsClient{})
+	retryFunc := retryFailedPasswordUpdates(hclog.NewNullLogger(), &fakeSecretsClient{})
 	if err := retryFunc(ctx, &logical.Request{Storage: storage}); err != nil {
 		t.Fatal(err)
 	}

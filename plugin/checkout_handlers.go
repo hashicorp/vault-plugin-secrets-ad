@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"errors"
+	"github.com/hashicorp/go-hclog"
 	"time"
 
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
@@ -102,20 +103,21 @@ func retrievePassword(ctx context.Context, storage logical.Storage, serviceAccou
 }
 
 // retryFailedPasswordUpdates is a callback because we need to add a client to the mix.
-func retryFailedPasswordUpdates(client secretsClient) func(context.Context, *logical.Request) error {
+func retryFailedPasswordUpdates(logger hclog.Logger, client secretsClient) func(context.Context, *logical.Request) error {
 	return func(ctx context.Context, req *logical.Request) error {
 		engineConf, err := readConfig(ctx, req.Storage)
 		if err != nil {
 			return err
-		}
-		if engineConf == nil {
-			return errors.New("the config is currently unset")
 		}
 
 		walIDs, err := framework.ListWAL(ctx, req.Storage)
 		if err != nil {
 			return err
 		}
+		if engineConf == nil && len(walIDs) > 0 {
+			return errors.New("unable to finish rotating passwords without an engine conf")
+		}
+
 		for _, walID := range walIDs {
 			walEntry, err := framework.GetWAL(ctx, req.Storage, walID)
 			if err != nil {

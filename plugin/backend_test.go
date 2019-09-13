@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-ldap/ldap"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -24,7 +25,10 @@ var (
 				MaxLeaseTTLVal:     maxLeaseTTLVal,
 			},
 		}
-		b := newBackend(&fakeSecretsClient{})
+		b, _ := newBackend(testCtx, &logical.BackendConfig{
+			StorageView: testStorage,
+			Logger:      hclog.NewNullLogger(),
+		}, &fakeSecretsClient{})
 		b.Setup(context.Background(), conf)
 		return b
 	}()

@@ -14,9 +14,12 @@ import (
 
 func Test_TTLIsRespected(t *testing.T) {
 	fakeClient := &thisFake{}
-	b := newBackend(fakeClient)
 	ctx := context.Background()
 	storage := &logical.InmemStorage{}
+	b, _ := newBackend(ctx, &logical.BackendConfig{
+		StorageView: storage,
+		Logger:      hclog.NewNullLogger(),
+	}, fakeClient)
 	logger := hclog.Default()
 	logger.SetLevel(hclog.Debug)
 

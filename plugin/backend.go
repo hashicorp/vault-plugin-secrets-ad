@@ -13,12 +13,23 @@ import (
 )
 
 func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend, error) {
-	backend := newBackend(util.NewSecretsClient(conf.Logger))
-	backend.Setup(ctx, conf)
+	backend, err := newBackend(ctx, conf, util.NewSecretsClient(conf.Logger))
+	if err != nil {
+		return nil, err
+	}
+	if err := backend.Setup(ctx, conf); err != nil {
+		return nil, err
+	}
 	return backend, nil
 }
 
-func newBackend(client secretsClient) *backend {
+func newBackend(ctx context.Context, conf *logical.BackendConfig, client secretsClient) (*backend, error) {
+	// On startup or taking leadership, attempt to finish all failed password updates before
+	// becoming available.
+	retryUpdatingPasswords := retryFailedPasswordUpdates(conf.Logger, client)
+	if err := retryUpdatingPasswords(ctx, &logical.Request{Storage: conf.StorageView}); err != nil {
+		return nil, err
+	}
 	adBackend := &backend{
 		client:         client,
 		roleCache:      cache.New(roleCacheExpiration, roleCacheCleanup),
@@ -42,9 +53,9 @@ func newBackend(client secretsClient) *backend {
 		},
 		Invalidate:   adBackend.Invalidate,
 		BackendType:  logical.TypeLogical,
-		PeriodicFunc: retryFailedPasswordUpdates(client),
+		PeriodicFunc: retryUpdatingPasswords,
 	}
-	return adBackend
+	return adBackend, nil
 }
 
 type backend struct {
