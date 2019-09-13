@@ -40,8 +40,9 @@ func newBackend(client secretsClient) *backend {
 				credPrefix,
 			},
 		},
-		Invalidate:  adBackend.Invalidate,
-		BackendType: logical.TypeLogical,
+		Invalidate:   adBackend.Invalidate,
+		BackendType:  logical.TypeLogical,
+		PeriodicFunc: retryFailedPasswordUpdates(client),
 	}
 	return adBackend
 }
