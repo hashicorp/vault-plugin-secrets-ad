@@ -10,8 +10,12 @@ import (
 
 const checkoutStoragePrefix = "library/"
 
+// ErrCurrentlyCheckedOut is returned when a check-out request is received
+// for a service account that's already checked out.
 var ErrCurrentlyCheckedOut = errors.New("currently checked out")
 
+// CheckOut provides information for a service account that is currently
+// checked out.
 type CheckOut struct {
 	BorrowerEntityID    string        `json:"borrower_entity_id"`
 	BorrowerClientToken string        `json:"borrower_client_token"`
@@ -19,6 +23,9 @@ type CheckOut struct {
 	Due                 time.Time     `json:"due"`
 }
 
+// CheckOutHandler is an interface used to break down tasks involved in managing checkouts. These tasks
+// are many and can be complex, so it helps to break them down into small, easily testable units
+// that help us build our confidence in the code.
 type CheckOutHandler interface {
 	// CheckOut attempts to check out a service account. If the account is unavailable, it returns
 	// ErrCurrentlyCheckedOut.
@@ -36,8 +43,13 @@ type CheckOutHandler interface {
 	Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error)
 }
 
+// StorageHandler's sole responsibility is to communicate with storage regarding check-outs.
 type StorageHandler struct{}
 
+// CheckOut will return:
+// 	- Nil if it was successfully able to perform the requested check out.
+//  - ErrCurrentlyCheckedOut if the account was already checked out.
+//  - Some other err if it was unable to complete successfully.
 func (h *StorageHandler) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
 	if err := validateInputs(ctx, storage, serviceAccountName, checkOut, true); err != nil {
 		return err
@@ -56,6 +68,8 @@ func (h *StorageHandler) CheckOut(ctx context.Context, storage logical.Storage, 
 	return storage.Put(ctx, entry)
 }
 
+// CheckIn will return nil error if it was able to successfully check in an account.
+// If the account was already checked in, it still returns no error.
 func (h *StorageHandler) CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
 	if err := validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
 		return err
@@ -64,6 +78,10 @@ func (h *StorageHandler) CheckIn(ctx context.Context, storage logical.Storage, s
 	return storage.Delete(ctx, checkoutStoragePrefix+serviceAccountName)
 }
 
+// Status returns either:
+//  - A *CheckOut and nil error if the serviceAccountName is currently checked out.
+//  - A nil *CheckOut and nil error if the serviceAccountName is not currently checked out.
+//  - A nil *CheckOut and populated err if the state cannot be determined.
 func (h *StorageHandler) Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error) {
 	if err := validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
 		return nil, err
