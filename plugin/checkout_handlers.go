@@ -30,7 +30,7 @@ type CheckOutHandler interface {
 	CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error
 
 	// Status returns either:
-	// 	- A *CheckOut and nil error if the serviceAccountName is currently checked out.
+	//  - A *CheckOut and nil error if the serviceAccountName is currently checked out.
 	//  - A nil *CheckOut and nil error if the serviceAccountName is not currently checked out.
 	//  - A nil *CheckOut and populated err if the state cannot be determined.
 	Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error)
