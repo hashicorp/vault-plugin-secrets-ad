@@ -47,7 +47,7 @@ type CheckOutHandler interface {
 type StorageHandler struct{}
 
 // CheckOut will return:
-// 	- Nil if it was successfully able to perform the requested check out.
+//  - Nil if it was successfully able to perform the requested check out.
 //  - ErrCurrentlyCheckedOut if the account was already checked out.
 //  - Some other err if it was unable to complete successfully.
 func (h *StorageHandler) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
