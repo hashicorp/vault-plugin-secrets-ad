@@ -8,7 +8,9 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
-var CurrentlyCheckedOut = errors.New("currently checked out")
+const checkoutStoragePrefix = "library/"
+
+var ErrCurrentlyCheckedOut = errors.New("currently checked out")
 
 type CheckOut struct {
 	BorrowerEntityID    string        `json:"borrower_entity_id"`
@@ -20,7 +22,6 @@ type CheckOut struct {
 type CheckOutHandler interface {
 	CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error
 	CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error
-	Delete(ctx context.Context, storage logical.Storage, serviceAccountName string) error
 	Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error)
 }
 
@@ -28,13 +29,13 @@ type StorageHandler struct{}
 
 func (h *StorageHandler) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
 	// Check if the service account is currently checked out.
-	if entry, err := storage.Get(ctx, "library/"+serviceAccountName); err != nil {
+	if entry, err := storage.Get(ctx, checkoutStoragePrefix+serviceAccountName); err != nil {
 		return err
 	} else if entry != nil {
-		return CurrentlyCheckedOut
+		return ErrCurrentlyCheckedOut
 	}
 	// Since it's not, store the new check-out.
-	entry, err := logical.StorageEntryJSON("library/"+serviceAccountName, checkOut)
+	entry, err := logical.StorageEntryJSON(checkoutStoragePrefix+serviceAccountName, checkOut)
 	if err != nil {
 		return err
 	}
@@ -43,15 +44,11 @@ func (h *StorageHandler) CheckOut(ctx context.Context, storage logical.Storage, 
 
 func (h *StorageHandler) CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
 	// We simply take checkouts out of storage when they're checked in.
-	return h.Delete(ctx, storage, serviceAccountName)
-}
-
-func (h *StorageHandler) Delete(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
-	return storage.Delete(ctx, "library/"+serviceAccountName)
+	return storage.Delete(ctx, checkoutStoragePrefix+serviceAccountName)
 }
 
 func (h *StorageHandler) Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error) {
-	entry, err := storage.Get(ctx, "library/"+serviceAccountName)
+	entry, err := storage.Get(ctx, checkoutStoragePrefix+serviceAccountName)
 	if err != nil {
 		return nil, err
 	}

@@ -45,8 +45,8 @@ func Test_StorageHandler(t *testing.T) {
 	// get a CurrentlyCheckedOutErr.
 	if err := storageHandler.CheckOut(ctx, storage, serviceAccountName, testCheckOut); err == nil {
 		t.Fatal("expected err but received none")
-	} else if err != CurrentlyCheckedOut {
-		t.Fatalf("expected CurrentlyCheckedOut, but received %s", err)
+	} else if err != ErrCurrentlyCheckedOut {
+		t.Fatalf("expected ErrCurrentlyCheckedOut, but received %s", err)
 	}
 
 	// If we try to check something in, it should succeed.
@@ -70,25 +70,6 @@ func Test_StorageHandler(t *testing.T) {
 
 	// If we check it out again, it should succeed.
 	if err := storageHandler.CheckOut(ctx, storage, serviceAccountName, testCheckOut); err != nil {
-		t.Fatal(err)
-	}
-
-	// If we try to delete something, it should succeed.
-	if err := storageHandler.Delete(ctx, storage, serviceAccountName); err != nil {
-		t.Fatal(err)
-	}
-
-	// We should again no longer have the testCheckOut in storage.
-	storedCheckOut, err = storageHandler.Status(ctx, storage, serviceAccountName)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if storedCheckOut != nil {
-		t.Fatal("storedCheckOut should be nil")
-	}
-
-	// If we try to delete it again, it should have the same behavior.
-	if err := storageHandler.Delete(ctx, storage, serviceAccountName); err != nil {
 		t.Fatal(err)
 	}
 }
