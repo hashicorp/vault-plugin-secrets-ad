@@ -14,7 +14,9 @@ import (
 
 func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend, error) {
 	backend := newBackend(util.NewSecretsClient(conf.Logger))
-	backend.Setup(ctx, conf)
+	if err := backend.Setup(ctx, conf); err != nil {
+		return nil, err
+	}
 	return backend, nil
 }
 
