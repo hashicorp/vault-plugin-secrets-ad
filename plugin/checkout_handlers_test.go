@@ -129,12 +129,9 @@ func TestPasswordHandlerInterfaceFulfillment(t *testing.T) {
 	}
 
 	// The password should get rotated successfully during check-in.
-	origPassword, err := retrievePassword(ctx, storage, serviceAccountName)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if origPassword != "" {
-		t.Fatal("expected empty password")
+	_, err := retrievePassword(ctx, storage, serviceAccountName)
+	if err != ErrNotFound {
+		t.Fatal("expected ErrNotFound")
 	}
 	if err := passwordHandler.CheckIn(ctx, storage, serviceAccountName); err != nil {
 		t.Fatal(err)
@@ -143,8 +140,8 @@ func TestPasswordHandlerInterfaceFulfillment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if currPassword == origPassword {
-		t.Fatal("expected new password, but received none")
+	if currPassword == "" {
+		t.Fatal("expected password, but received none")
 	}
 
 	// There should be no error during delete and the password should be deleted.
@@ -152,13 +149,9 @@ func TestPasswordHandlerInterfaceFulfillment(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// There should be no error during status.
 	currPassword, err = retrievePassword(ctx, storage, serviceAccountName)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if currPassword != "" {
-		t.Fatal("expected empty password")
+	if err != ErrNotFound {
+		t.Fatal("expected ErrNotFound")
 	}
 	checkOut, err = passwordHandler.Status(ctx, storage, serviceAccountName)
 	if err != nil {

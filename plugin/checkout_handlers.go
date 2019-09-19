@@ -11,9 +11,14 @@ import (
 
 const checkoutStoragePrefix = "library/"
 
-// ErrCurrentlyCheckedOut is returned when a check-out request is received
-// for a service account that's already checked out.
-var ErrCurrentlyCheckedOut = errors.New("currently checked out")
+var (
+	// ErrCurrentlyCheckedOut is returned when a check-out request is received
+	// for a service account that's already checked out.
+	ErrCurrentlyCheckedOut = errors.New("currently checked out")
+
+	// ErrNotFound is used when a requested item doesn't exist.
+	ErrNotFound = errors.New("not found")
+)
 
 // CheckOut provides information for a service account that is currently
 // checked out.
@@ -110,13 +115,17 @@ func (h *PasswordHandler) Status(ctx context.Context, storage logical.Storage, s
 }
 
 // retrievePassword is a utility function for grabbing a service account's password from storage.
+// retrievePassword will return:
+//  - "password", nil if it was successfully able to retrieve the password.
+//  - ErrNotFound if there's no password presently.
+//  - Some other err if it was unable to complete successfully.
 func retrievePassword(ctx context.Context, storage logical.Storage, serviceAccountName string) (string, error) {
 	entry, err := storage.Get(ctx, "password/"+serviceAccountName)
 	if err != nil {
 		return "", err
 	}
 	if entry == nil {
-		return "", nil
+		return "", ErrNotFound
 	}
 	password := ""
 	if err := entry.DecodeJSON(&password); err != nil {
