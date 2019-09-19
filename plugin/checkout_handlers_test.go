@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"reflect"
 	"testing"
 	"time"
@@ -159,6 +160,86 @@ func TestPasswordHandlerInterfaceFulfillment(t *testing.T) {
 	}
 	if checkOut != nil {
 		t.Fatal("expected checkOut to be nil")
+	}
+}
+
+func TestServiceAccountLocker(t *testing.T) {
+	// Check that all the main methods work.
+	ctx, storage, serviceAccountName, checkOut := setup()
+
+	serviceAccountLocker := NewServiceAccountLocker(&fakeCheckOutHandler{})
+	if err := serviceAccountLocker.CheckOut(ctx, storage, serviceAccountName, checkOut); err != nil {
+		t.Fatal(err)
+	}
+	if err := serviceAccountLocker.CheckIn(ctx, storage, serviceAccountName); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := serviceAccountLocker.Status(ctx, storage, serviceAccountName); err != nil {
+		t.Fatal(err)
+	}
+	if err := serviceAccountLocker.Delete(ctx, storage, serviceAccountName); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestServiceAccountLockerRace is intended to be run with the -race flag
+func TestServiceAccountLockerRace(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping due to short test run")
+	}
+
+	ctx, storage, serviceAccountName, checkOut := setup()
+
+	serviceAccountLocker := NewServiceAccountLocker(&PasswordHandler{
+		client: &fakeSecretsClient{},
+		child:  &StorageHandler{},
+	})
+
+	rand.Seed(time.Now().UnixNano())
+	start := make(chan bool)
+	done := make(chan bool)
+	numWorkers := 100
+	for i := 0; i < numWorkers; i++ {
+		go func() {
+			// Ensure all goroutines start at the same time.
+			<-start
+			// Each routine will call one function randomly on the same service account,
+			// so draw a number from 0 to 3 to pick which one....
+			switch rand.Intn(4) {
+			case 0:
+				// check it in
+				if err := serviceAccountLocker.CheckIn(ctx, storage, serviceAccountName); err != nil {
+					t.Fatal(err)
+				}
+			case 1:
+				// check it out
+				if err := serviceAccountLocker.CheckOut(ctx, storage, serviceAccountName, checkOut); err != nil && err != ErrCurrentlyCheckedOut {
+					t.Fatal(err)
+				}
+			case 2:
+				// get its status
+				if _, err := serviceAccountLocker.Status(ctx, storage, serviceAccountName); err != nil {
+					t.Fatal(err)
+				}
+			case 3:
+				// delete it
+				if err := serviceAccountLocker.Delete(ctx, storage, serviceAccountName); err != nil {
+					t.Fatal(err)
+				}
+			}
+			// State you're done.
+			done <- true
+		}()
+	}
+	close(start)
+	timer := time.NewTimer(time.Second * 10)
+	for i := 0; i < numWorkers; i++ {
+		select {
+		case <-done:
+			continue
+		case <-timer.C:
+			t.Fatal("test took more than 10 seconds for all 100 to get through")
+		}
 	}
 }
 

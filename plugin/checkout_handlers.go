@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
@@ -50,6 +51,76 @@ type CheckOutHandler interface {
 
 	// Delete cleans up anything we were tracking from the service account that we will no longer need.
 	Delete(ctx context.Context, storage logical.Storage, serviceAccountName string) error
+}
+
+// NewServiceAccountLocker is the preferable way to instantiate a ServiceAccountLocker
+// because it populates the map of locks for you.
+func NewServiceAccountLocker(child CheckOutHandler) *ServiceAccountLocker {
+	return &ServiceAccountLocker{
+		locks: &sync.Map{},
+		child: child,
+	}
+}
+
+// ServiceAccountLocker protects against races.
+type ServiceAccountLocker struct {
+	// This is, in effect, being used as a map[string]*sync.RWMutex
+	locks *sync.Map
+	child CheckOutHandler
+}
+
+// CheckOut holds a write lock for the duration of the work to be done.
+func (l *ServiceAccountLocker) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
+	if err := validateInputs(ctx, storage, serviceAccountName, checkOut, true); err != nil {
+		return err
+	}
+	lock := l.getOrCreateLock(serviceAccountName)
+	lock.Lock()
+	defer lock.Unlock()
+	return l.child.CheckOut(ctx, storage, serviceAccountName, checkOut)
+}
+
+// CheckIn holds a write lock for the duration of the work to be done.
+func (l *ServiceAccountLocker) CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
+	if err := validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
+		return err
+	}
+	lock := l.getOrCreateLock(serviceAccountName)
+	lock.Lock()
+	defer lock.Unlock()
+	return l.child.CheckIn(ctx, storage, serviceAccountName)
+}
+
+// Delete holds a write lock for the duration of the work to be done.
+func (l *ServiceAccountLocker) Delete(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
+	if err := validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
+		return err
+	}
+	lock := l.getOrCreateLock(serviceAccountName)
+	lock.Lock()
+	defer lock.Unlock()
+	return l.child.Delete(ctx, storage, serviceAccountName)
+}
+
+// Status holds a read-only lock for the duration of the work to be done.
+func (l *ServiceAccountLocker) Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error) {
+	if err := validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
+		return nil, err
+	}
+	lock := l.getOrCreateLock(serviceAccountName)
+	lock.RLock()
+	defer lock.RUnlock()
+	return l.child.Status(ctx, storage, serviceAccountName)
+}
+
+func (l *ServiceAccountLocker) getOrCreateLock(serviceAccountName string) *sync.RWMutex {
+	lockIfc, ok := l.locks.Load(serviceAccountName)
+	if ok {
+		return lockIfc.(*sync.RWMutex)
+	}
+	lock := &sync.RWMutex{}
+	l.locks.Store(serviceAccountName, lock)
+	return lock
 }
 
 // PasswordHandler is responsible for rolling and storing a service account's password upon check-in.
