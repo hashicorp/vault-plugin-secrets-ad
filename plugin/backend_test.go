@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -23,7 +24,7 @@ var (
 				MaxLeaseTTLVal:     maxLeaseTTLVal,
 			},
 		}
-		b := newBackend(&fake{})
+		b := newBackend(&fakeSecretsClient{})
 		b.Setup(context.Background(), conf)
 		return b
 	}()
@@ -336,25 +337,43 @@ Beq3QOqp2+dga36IzQybzPQ8QtotrpSJ3q82zztEvyWiJ7E=
 -----END CERTIFICATE-----
 `
 
-type fake struct{}
+type fakeSecretsClient struct {
+	throwErrs bool
+}
 
-func (f *fake) Get(conf *client.ADConf, serviceAccountName string) (*client.Entry, error) {
+func (f *fakeSecretsClient) Get(conf *client.ADConf, serviceAccountName string) (*client.Entry, error) {
 	entry := &ldap.Entry{}
 	entry.Attributes = append(entry.Attributes, &ldap.EntryAttribute{
 		Name:   client.FieldRegistry.PasswordLastSet.String(),
 		Values: []string{"131680504285591921"},
 	})
-	return client.NewEntry(entry), nil
+	var err error
+	if f.throwErrs {
+		err = errors.New("nope")
+	}
+	return client.NewEntry(entry), err
 }
 
-func (f *fake) GetPasswordLastSet(conf *client.ADConf, serviceAccountName string) (time.Time, error) {
-	return time.Time{}, nil
+func (f *fakeSecretsClient) GetPasswordLastSet(conf *client.ADConf, serviceAccountName string) (time.Time, error) {
+	var err error
+	if f.throwErrs {
+		err = errors.New("nope")
+	}
+	return time.Time{}, err
 }
 
-func (f *fake) UpdatePassword(conf *client.ADConf, serviceAccountName string, newPassword string) error {
-	return nil
+func (f *fakeSecretsClient) UpdatePassword(conf *client.ADConf, serviceAccountName string, newPassword string) error {
+	var err error
+	if f.throwErrs {
+		err = errors.New("nope")
+	}
+	return err
 }
 
-func (f *fake) UpdateRootPassword(conf *client.ADConf, bindDN string, newPassword string) error {
-	return nil
+func (f *fakeSecretsClient) UpdateRootPassword(conf *client.ADConf, bindDN string, newPassword string) error {
+	var err error
+	if f.throwErrs {
+		err = errors.New("nope")
+	}
+	return err
 }
