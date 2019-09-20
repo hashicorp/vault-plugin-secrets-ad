@@ -53,6 +53,55 @@ type CheckOutHandler interface {
 	Delete(ctx context.Context, storage logical.Storage, serviceAccountName string) error
 }
 
+type InputValidator struct {
+	wrapped CheckOutHandler
+}
+
+func (v *InputValidator) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
+	if err := v.validateInputs(ctx, storage, serviceAccountName, checkOut, true); err != nil {
+		return err
+	}
+	return v.wrapped.CheckOut(ctx, storage, serviceAccountName, checkOut)
+}
+
+func (v *InputValidator) CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
+	if err := v.validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
+		return err
+	}
+	return v.wrapped.CheckIn(ctx, storage, serviceAccountName)
+}
+
+func (v *InputValidator) Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error) {
+	if err := v.validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
+		return nil, err
+	}
+	return v.wrapped.Status(ctx, storage, serviceAccountName)
+}
+
+func (v *InputValidator) Delete(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
+	if err := v.validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
+		return err
+	}
+	return v.wrapped.Delete(ctx, storage, serviceAccountName)
+}
+
+// validateInputs is a helper function for ensuring that a caller has satisfied all required arguments.
+func (v *InputValidator) validateInputs(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut, checkOutRequired bool) error {
+	if ctx == nil {
+		return errors.New("ctx is required")
+	}
+	if storage == nil {
+		return errors.New("storage is required")
+	}
+	if serviceAccountName == "" {
+		return errors.New("serviceAccountName is required")
+	}
+	if checkOutRequired && checkOut == nil {
+		return errors.New("checkOut is required")
+	}
+	return nil
+}
+
 // NewServiceAccountLocker is the preferable way to instantiate a ServiceAccountLocker
 // because it populates the map of locks for you.
 func NewServiceAccountLocker(child CheckOutHandler) *ServiceAccountLocker {
@@ -71,9 +120,6 @@ type ServiceAccountLocker struct {
 
 // CheckOut holds a write lock for the duration of the work to be done.
 func (l *ServiceAccountLocker) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
-	if err := validateInputs(ctx, storage, serviceAccountName, checkOut, true); err != nil {
-		return err
-	}
 	lock := l.getOrCreateLock(serviceAccountName)
 	lock.Lock()
 	defer lock.Unlock()
@@ -82,9 +128,6 @@ func (l *ServiceAccountLocker) CheckOut(ctx context.Context, storage logical.Sto
 
 // CheckIn holds a write lock for the duration of the work to be done.
 func (l *ServiceAccountLocker) CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
-	if err := validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
-		return err
-	}
 	lock := l.getOrCreateLock(serviceAccountName)
 	lock.Lock()
 	defer lock.Unlock()
@@ -93,9 +136,6 @@ func (l *ServiceAccountLocker) CheckIn(ctx context.Context, storage logical.Stor
 
 // Delete holds a write lock for the duration of the work to be done.
 func (l *ServiceAccountLocker) Delete(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
-	if err := validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
-		return err
-	}
 	lock := l.getOrCreateLock(serviceAccountName)
 	lock.Lock()
 	defer lock.Unlock()
@@ -104,9 +144,6 @@ func (l *ServiceAccountLocker) Delete(ctx context.Context, storage logical.Stora
 
 // Status holds a read-only lock for the duration of the work to be done.
 func (l *ServiceAccountLocker) Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error) {
-	if err := validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
-		return nil, err
-	}
 	lock := l.getOrCreateLock(serviceAccountName)
 	lock.RLock()
 	defer lock.RUnlock()
@@ -141,9 +178,6 @@ func (h *PasswordHandler) CheckOut(ctx context.Context, storage logical.Storage,
 //		- The client may (or may not) retry the check-in.
 // 		- The overdue watcher will still check it in if its lending period runs out.
 func (h *PasswordHandler) CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
-	if err := validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
-		return err
-	}
 	// On check-ins, a new AD password is generated, updated in AD, and stored.
 	engineConf, err := readConfig(ctx, storage)
 	if err != nil {
@@ -171,9 +205,6 @@ func (h *PasswordHandler) CheckIn(ctx context.Context, storage logical.Storage, 
 
 // Delete simply deletes the password from storage so it's not stored unnecessarily.
 func (h *PasswordHandler) Delete(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
-	if err := validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
-		return err
-	}
 	if err := storage.Delete(ctx, "password/"+serviceAccountName); err != nil {
 		return err
 	}
@@ -213,9 +244,6 @@ type StorageHandler struct{}
 //  - ErrCurrentlyCheckedOut if the account was already checked out.
 //  - Some other err if it was unable to complete successfully.
 func (h *StorageHandler) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
-	if err := validateInputs(ctx, storage, serviceAccountName, checkOut, true); err != nil {
-		return err
-	}
 	// Check if the service account is currently checked out.
 	if entry, err := storage.Get(ctx, checkoutStoragePrefix+serviceAccountName); err != nil {
 		return err
@@ -242,9 +270,6 @@ func (h *StorageHandler) CheckIn(ctx context.Context, storage logical.Storage, s
 //  - A nil *CheckOut and nil error if the serviceAccountName is not currently checked out.
 //  - A nil *CheckOut and populated err if the state cannot be determined.
 func (h *StorageHandler) Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error) {
-	if err := validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
-		return nil, err
-	}
 	entry, err := storage.Get(ctx, checkoutStoragePrefix+serviceAccountName)
 	if err != nil {
 		return nil, err
@@ -260,25 +285,5 @@ func (h *StorageHandler) Status(ctx context.Context, storage logical.Storage, se
 }
 
 func (h *StorageHandler) Delete(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
-	if err := validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
-		return err
-	}
 	return storage.Delete(ctx, checkoutStoragePrefix+serviceAccountName)
-}
-
-// validateInputs is a helper function for ensuring that a caller has satisfied all required arguments.
-func validateInputs(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut, checkOutRequired bool) error {
-	if ctx == nil {
-		return errors.New("ctx is required")
-	}
-	if storage == nil {
-		return errors.New("storage is required")
-	}
-	if serviceAccountName == "" {
-		return errors.New("serviceAccountName is required")
-	}
-	if checkOutRequired && checkOut == nil {
-		return errors.New("checkOut is required")
-	}
-	return nil
 }

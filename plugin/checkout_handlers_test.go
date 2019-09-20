@@ -95,23 +95,24 @@ func TestValidateInputs(t *testing.T) {
 	ctx, storage, serviceAccountName, checkOut := setup()
 
 	// Failure cases.
-	if err := validateInputs(nil, storage, serviceAccountName, checkOut, true); err == nil {
+	v := &InputValidator{}
+	if err := v.validateInputs(nil, storage, serviceAccountName, checkOut, true); err == nil {
 		t.Fatal("expected err because ctx isn't provided")
 	}
-	if err := validateInputs(ctx, nil, serviceAccountName, checkOut, true); err == nil {
+	if err := v.validateInputs(ctx, nil, serviceAccountName, checkOut, true); err == nil {
 		t.Fatal("expected err because storage isn't provided")
 	}
-	if err := validateInputs(ctx, storage, "", checkOut, true); err == nil {
+	if err := v.validateInputs(ctx, storage, "", checkOut, true); err == nil {
 		t.Fatal("expected err because serviceAccountName isn't provided")
 	}
-	if err := validateInputs(ctx, storage, serviceAccountName, nil, true); err == nil {
+	if err := v.validateInputs(ctx, storage, serviceAccountName, nil, true); err == nil {
 		t.Fatal("expected err because checkOut isn't provided")
 	}
 	// Success cases.
-	if err := validateInputs(ctx, storage, serviceAccountName, checkOut, true); err != nil {
+	if err := v.validateInputs(ctx, storage, serviceAccountName, checkOut, true); err != nil {
 		t.Fatal(err)
 	}
-	if err := validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
+	if err := v.validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
 		t.Fatal(err)
 	}
 }
