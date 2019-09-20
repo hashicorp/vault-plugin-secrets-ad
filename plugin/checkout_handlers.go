@@ -57,16 +57,16 @@ type CheckOutHandler interface {
 // because it populates the map of locks for you.
 func NewServiceAccountLocker(child CheckOutHandler) *ServiceAccountLocker {
 	return &ServiceAccountLocker{
-		locks: &sync.Map{},
-		child: child,
+		locks:   &sync.Map{},
+		wrapped: child,
 	}
 }
 
 // ServiceAccountLocker protects against races.
 type ServiceAccountLocker struct {
 	// This is, in effect, being used as a map[string]*sync.RWMutex
-	locks *sync.Map
-	child CheckOutHandler
+	locks   *sync.Map
+	wrapped CheckOutHandler
 }
 
 // CheckOut holds a write lock for the duration of the work to be done.
@@ -77,7 +77,7 @@ func (l *ServiceAccountLocker) CheckOut(ctx context.Context, storage logical.Sto
 	lock := l.getOrCreateLock(serviceAccountName)
 	lock.Lock()
 	defer lock.Unlock()
-	return l.child.CheckOut(ctx, storage, serviceAccountName, checkOut)
+	return l.wrapped.CheckOut(ctx, storage, serviceAccountName, checkOut)
 }
 
 // CheckIn holds a write lock for the duration of the work to be done.
@@ -88,7 +88,7 @@ func (l *ServiceAccountLocker) CheckIn(ctx context.Context, storage logical.Stor
 	lock := l.getOrCreateLock(serviceAccountName)
 	lock.Lock()
 	defer lock.Unlock()
-	return l.child.CheckIn(ctx, storage, serviceAccountName)
+	return l.wrapped.CheckIn(ctx, storage, serviceAccountName)
 }
 
 // Delete holds a write lock for the duration of the work to be done.
@@ -99,7 +99,7 @@ func (l *ServiceAccountLocker) Delete(ctx context.Context, storage logical.Stora
 	lock := l.getOrCreateLock(serviceAccountName)
 	lock.Lock()
 	defer lock.Unlock()
-	return l.child.Delete(ctx, storage, serviceAccountName)
+	return l.wrapped.Delete(ctx, storage, serviceAccountName)
 }
 
 // Status holds a read-only lock for the duration of the work to be done.
@@ -110,7 +110,7 @@ func (l *ServiceAccountLocker) Status(ctx context.Context, storage logical.Stora
 	lock := l.getOrCreateLock(serviceAccountName)
 	lock.RLock()
 	defer lock.RUnlock()
-	return l.child.Status(ctx, storage, serviceAccountName)
+	return l.wrapped.Status(ctx, storage, serviceAccountName)
 }
 
 func (l *ServiceAccountLocker) getOrCreateLock(serviceAccountName string) *sync.RWMutex {
@@ -125,13 +125,13 @@ func (l *ServiceAccountLocker) getOrCreateLock(serviceAccountName string) *sync.
 
 // PasswordHandler is responsible for rolling and storing a service account's password upon check-in.
 type PasswordHandler struct {
-	client secretsClient
-	child  CheckOutHandler
+	client  secretsClient
+	wrapped CheckOutHandler
 }
 
 // CheckOut requires no further action from the password handler other than passing along the request.
 func (h *PasswordHandler) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
-	return h.child.CheckOut(ctx, storage, serviceAccountName, checkOut)
+	return h.wrapped.CheckOut(ctx, storage, serviceAccountName, checkOut)
 }
 
 // CheckIn rotates the service account's password remotely and stores it locally.
@@ -166,7 +166,7 @@ func (h *PasswordHandler) CheckIn(ctx context.Context, storage logical.Storage, 
 	if err := storage.Put(ctx, entry); err != nil {
 		return err
 	}
-	return h.child.CheckIn(ctx, storage, serviceAccountName)
+	return h.wrapped.CheckIn(ctx, storage, serviceAccountName)
 }
 
 // Delete simply deletes the password from storage so it's not stored unnecessarily.
@@ -177,12 +177,12 @@ func (h *PasswordHandler) Delete(ctx context.Context, storage logical.Storage, s
 	if err := storage.Delete(ctx, "password/"+serviceAccountName); err != nil {
 		return err
 	}
-	return h.child.Delete(ctx, storage, serviceAccountName)
+	return h.wrapped.Delete(ctx, storage, serviceAccountName)
 }
 
 // Status doesn't need any password work.
 func (h *PasswordHandler) Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error) {
-	return h.child.Status(ctx, storage, serviceAccountName)
+	return h.wrapped.Status(ctx, storage, serviceAccountName)
 }
 
 // retrievePassword is a utility function for grabbing a service account's password from storage.
