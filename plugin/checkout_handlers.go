@@ -53,10 +53,13 @@ type CheckOutHandler interface {
 	Delete(ctx context.Context, storage logical.Storage, serviceAccountName string) error
 }
 
+// InputValidator will be the first object called in the stack of handlers, to ensure items
+// expected in the signature are present, and to handle any other validation logic.
 type InputValidator struct {
 	CheckOutHandler
 }
 
+// CheckOut ensures all inputs in the signature are present.
 func (v *InputValidator) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
 	if err := v.validateInputs(ctx, storage, serviceAccountName, checkOut, true); err != nil {
 		return err
@@ -64,6 +67,7 @@ func (v *InputValidator) CheckOut(ctx context.Context, storage logical.Storage, 
 	return v.CheckOutHandler.CheckOut(ctx, storage, serviceAccountName, checkOut)
 }
 
+// CheckIn ensures all inputs in the signature are present.
 func (v *InputValidator) CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
 	if err := v.validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
 		return err
@@ -71,6 +75,7 @@ func (v *InputValidator) CheckIn(ctx context.Context, storage logical.Storage, s
 	return v.CheckOutHandler.CheckIn(ctx, storage, serviceAccountName)
 }
 
+// Status ensures all inputs in the signature are present.
 func (v *InputValidator) Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error) {
 	if err := v.validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
 		return nil, err
@@ -78,6 +83,7 @@ func (v *InputValidator) Status(ctx context.Context, storage logical.Storage, se
 	return v.CheckOutHandler.Status(ctx, storage, serviceAccountName)
 }
 
+// Delete ensures all inputs in the signature are present.
 func (v *InputValidator) Delete(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
 	if err := v.validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
 		return err
