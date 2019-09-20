@@ -121,8 +121,8 @@ func TestPasswordHandlerInterfaceFulfillment(t *testing.T) {
 	ctx, storage, serviceAccountName, checkOut := setup()
 
 	passwordHandler := &PasswordHandler{
-		client:  &fakeSecretsClient{},
-		wrapped: &fakeCheckOutHandler{},
+		client:          &fakeSecretsClient{},
+		CheckOutHandler: &fakeCheckOutHandler{},
 	}
 
 	// There should be no error during check-out.
@@ -192,8 +192,8 @@ func TestServiceAccountLockerRace(t *testing.T) {
 	ctx, storage, serviceAccountName, checkOut := setup()
 
 	serviceAccountLocker := NewServiceAccountLocker(&PasswordHandler{
-		client:  &fakeSecretsClient{},
-		wrapped: &StorageHandler{},
+		client:          &fakeSecretsClient{},
+		CheckOutHandler: &StorageHandler{},
 	})
 
 	rand.Seed(time.Now().UnixNano())
