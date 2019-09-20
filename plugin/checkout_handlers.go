@@ -61,28 +61,28 @@ func (v *InputValidator) CheckOut(ctx context.Context, storage logical.Storage, 
 	if err := v.validateInputs(ctx, storage, serviceAccountName, checkOut, true); err != nil {
 		return err
 	}
-	return v.CheckOut(ctx, storage, serviceAccountName, checkOut)
+	return v.CheckOutHandler.CheckOut(ctx, storage, serviceAccountName, checkOut)
 }
 
 func (v *InputValidator) CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
 	if err := v.validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
 		return err
 	}
-	return v.CheckIn(ctx, storage, serviceAccountName)
+	return v.CheckOutHandler.CheckIn(ctx, storage, serviceAccountName)
 }
 
 func (v *InputValidator) Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error) {
 	if err := v.validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
 		return nil, err
 	}
-	return v.Status(ctx, storage, serviceAccountName)
+	return v.CheckOutHandler.Status(ctx, storage, serviceAccountName)
 }
 
 func (v *InputValidator) Delete(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
 	if err := v.validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
 		return err
 	}
-	return v.Delete(ctx, storage, serviceAccountName)
+	return v.CheckOutHandler.Delete(ctx, storage, serviceAccountName)
 }
 
 // validateInputs is a helper function for ensuring that a caller has satisfied all required arguments.
@@ -123,7 +123,7 @@ func (l *ServiceAccountLocker) CheckOut(ctx context.Context, storage logical.Sto
 	lock := l.getOrCreateLock(serviceAccountName)
 	lock.Lock()
 	defer lock.Unlock()
-	return l.CheckOut(ctx, storage, serviceAccountName, checkOut)
+	return l.CheckOutHandler.CheckOut(ctx, storage, serviceAccountName, checkOut)
 }
 
 // CheckIn holds a write lock for the duration of the work to be done.
@@ -131,7 +131,7 @@ func (l *ServiceAccountLocker) CheckIn(ctx context.Context, storage logical.Stor
 	lock := l.getOrCreateLock(serviceAccountName)
 	lock.Lock()
 	defer lock.Unlock()
-	return l.CheckIn(ctx, storage, serviceAccountName)
+	return l.CheckOutHandler.CheckIn(ctx, storage, serviceAccountName)
 }
 
 // Delete holds a write lock for the duration of the work to be done.
@@ -139,7 +139,7 @@ func (l *ServiceAccountLocker) Delete(ctx context.Context, storage logical.Stora
 	lock := l.getOrCreateLock(serviceAccountName)
 	lock.Lock()
 	defer lock.Unlock()
-	return l.Delete(ctx, storage, serviceAccountName)
+	return l.CheckOutHandler.Delete(ctx, storage, serviceAccountName)
 }
 
 // Status holds a read-only lock for the duration of the work to be done.
@@ -147,7 +147,7 @@ func (l *ServiceAccountLocker) Status(ctx context.Context, storage logical.Stora
 	lock := l.getOrCreateLock(serviceAccountName)
 	lock.RLock()
 	defer lock.RUnlock()
-	return l.Status(ctx, storage, serviceAccountName)
+	return l.CheckOutHandler.Status(ctx, storage, serviceAccountName)
 }
 
 func (l *ServiceAccountLocker) getOrCreateLock(serviceAccountName string) *sync.RWMutex {
@@ -168,7 +168,7 @@ type PasswordHandler struct {
 
 // CheckOut requires no further action from the password handler other than passing along the request.
 func (h *PasswordHandler) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
-	return h.CheckOut(ctx, storage, serviceAccountName, checkOut)
+	return h.CheckOutHandler.CheckOut(ctx, storage, serviceAccountName, checkOut)
 }
 
 // CheckIn rotates the service account's password remotely and stores it locally.
@@ -200,7 +200,7 @@ func (h *PasswordHandler) CheckIn(ctx context.Context, storage logical.Storage, 
 	if err := storage.Put(ctx, entry); err != nil {
 		return err
 	}
-	return h.CheckIn(ctx, storage, serviceAccountName)
+	return h.CheckOutHandler.CheckIn(ctx, storage, serviceAccountName)
 }
 
 // Delete simply deletes the password from storage so it's not stored unnecessarily.
@@ -208,12 +208,12 @@ func (h *PasswordHandler) Delete(ctx context.Context, storage logical.Storage, s
 	if err := storage.Delete(ctx, "password/"+serviceAccountName); err != nil {
 		return err
 	}
-	return h.Delete(ctx, storage, serviceAccountName)
+	return h.CheckOutHandler.Delete(ctx, storage, serviceAccountName)
 }
 
 // Status doesn't need any password work.
 func (h *PasswordHandler) Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error) {
-	return h.Status(ctx, storage, serviceAccountName)
+	return h.CheckOutHandler.Status(ctx, storage, serviceAccountName)
 }
 
 // retrievePassword is a utility function for grabbing a service account's password from storage.
