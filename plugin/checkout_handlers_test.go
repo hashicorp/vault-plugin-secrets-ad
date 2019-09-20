@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"reflect"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
@@ -19,7 +19,7 @@ func setup() (context.Context, logical.Storage, string, *CheckOut) {
 		BorrowerEntityID:    "entity-id",
 		BorrowerClientToken: "client-token",
 		LendingPeriod:       10,
-		Due:                 time.Now().UTC(),
+		Due:                 time.Now().Add(time.Second * 10).Round(time.Nanosecond),
 	}
 	config := &configuration{
 		PasswordConf: &passwordConf{
@@ -54,7 +54,16 @@ func Test_StorageHandler(t *testing.T) {
 	if storedCheckOut == nil {
 		t.Fatal("storedCheckOut should not be nil")
 	}
-	if !reflect.DeepEqual(testCheckOut, storedCheckOut) {
+	if testCheckOut.BorrowerEntityID != storedCheckOut.BorrowerEntityID {
+		t.Fatalf(fmt.Sprintf(`expected %s to be equal to %s`, testCheckOut, storedCheckOut))
+	}
+	if testCheckOut.BorrowerClientToken != storedCheckOut.BorrowerClientToken {
+		t.Fatalf(fmt.Sprintf(`expected %s to be equal to %s`, testCheckOut, storedCheckOut))
+	}
+	if testCheckOut.LendingPeriod != storedCheckOut.LendingPeriod {
+		t.Fatalf(fmt.Sprintf(`expected %s to be equal to %s`, testCheckOut, storedCheckOut))
+	}
+	if testCheckOut.Due.String() != storedCheckOut.Due.String() {
 		t.Fatalf(fmt.Sprintf(`expected %s to be equal to %s`, testCheckOut, storedCheckOut))
 	}
 
@@ -183,58 +192,65 @@ func TestServiceAccountLocker(t *testing.T) {
 	}
 }
 
-// TestServiceAccountLockerRace is intended to be run with the -race flag
-func TestServiceAccountLockerRace(t *testing.T) {
+// TestCheckOutHandlerRace is intended to be run with the -race flag
+func TestCheckOutHandlerRace(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping due to short test run")
 	}
 
 	ctx, storage, serviceAccountName, checkOut := setup()
 
-	serviceAccountLocker := NewServiceAccountLocker(&PasswordHandler{
-		client:          &fakeSecretsClient{},
-		CheckOutHandler: &StorageHandler{},
-	})
+	leaderHandler, err := NewCheckOutHandler(ctx, true, hclog.Default(), storage, &fakeSecretsClient{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	followerHandler, err := NewCheckOutHandler(ctx, false, hclog.Default(), storage, &fakeSecretsClient{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	rand.Seed(time.Now().UnixNano())
 	start := make(chan bool)
 	done := make(chan bool)
 	numWorkers := 100
-	for i := 0; i < numWorkers; i++ {
-		go func() {
-			// Ensure all goroutines start at the same time.
-			<-start
-			// Each routine will call one function randomly on the same service account,
-			// so draw a number from 0 to 3 to pick which one....
-			switch rand.Intn(4) {
-			case 0:
-				// check it in
-				if err := serviceAccountLocker.CheckIn(ctx, storage, serviceAccountName); err != nil {
-					t.Fatal(err)
+	for _, checkOutHandler := range []CheckOutHandler{leaderHandler, followerHandler} {
+		for i := 0; i < numWorkers; i++ {
+			go func() {
+				// Ensure all goroutines start at the same time.
+				<-start
+				// Each routine will call one function randomly on the same service account,
+				// so draw a number from 0 to 3 to pick which one....
+				switch rand.Intn(5) {
+				case 0:
+					if err := checkOutHandler.CheckIn(ctx, storage, serviceAccountName); err != nil {
+						t.Fatal(err)
+					}
+				case 1:
+					if err := checkOutHandler.CheckOut(ctx, storage, serviceAccountName, checkOut); err != nil && err != ErrCurrentlyCheckedOut {
+						t.Fatal(err)
+					}
+				case 2:
+					if _, err := checkOutHandler.Status(ctx, storage, serviceAccountName); err != nil {
+						t.Fatal(err)
+					}
+				case 3:
+					if err := checkOutHandler.Delete(ctx, storage, serviceAccountName); err != nil {
+						t.Fatal(err)
+					}
+				case 4:
+					if err := checkOutHandler.RenewCheckOut(ctx, storage, serviceAccountName, checkOut); err != nil && err != ErrNotCurrentlyCheckedOut {
+						t.Fatal(err)
+					}
 				}
-			case 1:
-				// check it out
-				if err := serviceAccountLocker.CheckOut(ctx, storage, serviceAccountName, checkOut); err != nil && err != ErrCurrentlyCheckedOut {
-					t.Fatal(err)
-				}
-			case 2:
-				// get its status
-				if _, err := serviceAccountLocker.Status(ctx, storage, serviceAccountName); err != nil {
-					t.Fatal(err)
-				}
-			case 3:
-				// delete it
-				if err := serviceAccountLocker.Delete(ctx, storage, serviceAccountName); err != nil {
-					t.Fatal(err)
-				}
-			}
-			// State you're done.
-			done <- true
-		}()
+				// State you're done.
+				done <- true
+			}()
+		}
 	}
+
 	close(start)
 	timer := time.NewTimer(time.Second * 10)
-	for i := 0; i < numWorkers; i++ {
+	for i := 0; i < numWorkers*2; i++ {
 		select {
 		case <-done:
 			continue
@@ -244,9 +260,88 @@ func TestServiceAccountLockerRace(t *testing.T) {
 	}
 }
 
+func TestOverdueWatcher(t *testing.T) {
+	ctx, storage, serviceAccountName, checkOut := setup()
+	logger := hclog.Default()
+	logger.SetLevel(hclog.Debug)
+	checkOut.Due = time.Now().Add(time.Hour)
+
+	// Create a realistic OverdueWatcher.
+	serviceAccountLocker := NewServiceAccountLocker(&PasswordHandler{
+		client:          &fakeSecretsClient{},
+		CheckOutHandler: &StorageHandler{},
+	})
+
+	overdueWatcher := NewOverdueWatcher(logger, storage, serviceAccountLocker)
+	if err := overdueWatcher.CheckOut(ctx, storage, serviceAccountName, checkOut); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := overdueWatcher.Status(ctx, storage, serviceAccountName); err != nil {
+		t.Fatal(err)
+	}
+	if err := overdueWatcher.CheckIn(ctx, storage, serviceAccountName); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := overdueWatcher.Status(ctx, storage, serviceAccountName); err != nil {
+		t.Fatal(err)
+	}
+	if err := overdueWatcher.CheckOut(ctx, storage, serviceAccountName, checkOut); err != nil {
+		t.Fatal(err)
+	}
+	if err := overdueWatcher.CheckIn(ctx, storage, serviceAccountName); err != nil {
+		t.Fatal(err)
+	}
+	if err := overdueWatcher.Delete(ctx, storage, serviceAccountName); err != nil {
+		t.Fatal(err)
+	}
+	if err := overdueWatcher.CheckOut(ctx, storage, serviceAccountName, checkOut); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestOverdueWatcherAutomatesCheckIns(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping due to short test run")
+	}
+
+	ctx, storage, serviceAccountName, checkOut := setup()
+
+	// Create a realistic OverdueWatcher.
+	serviceAccountLocker := NewServiceAccountLocker(&PasswordHandler{
+		client:          &fakeSecretsClient{},
+		CheckOutHandler: &StorageHandler{},
+	})
+	logger := hclog.Default()
+	logger.SetLevel(hclog.Debug)
+	overdueWatcher := NewOverdueWatcher(logger, storage, serviceAccountLocker)
+
+	// First, check out the account with it due in 10 seconds.
+	if err := overdueWatcher.CheckOut(ctx, storage, serviceAccountName, checkOut); err != nil {
+		t.Fatal(err)
+	}
+	// Next, if we immediately try to check it out again, we should get that it's currently checked out.
+	if err := overdueWatcher.CheckOut(ctx, storage, serviceAccountName, checkOut); err == nil {
+		t.Fatal("expected an error because the account should currently be checked out")
+	} else if err != ErrCurrentlyCheckedOut {
+		t.Fatal(err)
+	}
+	// Now, if we wait 11 seconds, the lending period should end, the account should get checked back in,
+	// and we should be able to check it out again.
+	time.Sleep(time.Second * 11)
+
+	checkOut.Due = time.Now().Add(time.Second * 10)
+	if err := overdueWatcher.CheckOut(ctx, storage, serviceAccountName, checkOut); err != nil {
+		t.Fatal(err)
+	}
+}
+
 type fakeCheckOutHandler struct{}
 
 func (f *fakeCheckOutHandler) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
+	return nil
+}
+
+func (f *fakeCheckOutHandler) RenewCheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
 	return nil
 }
 

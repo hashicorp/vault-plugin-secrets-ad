@@ -8,15 +8,27 @@ import (
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
 	"github.com/hashicorp/vault/sdk/framework"
+	"github.com/hashicorp/vault/sdk/helper/consts"
 	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/patrickmn/go-cache"
 )
 
 func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend, error) {
-	backend := newBackend(util.NewSecretsClient(conf.Logger))
+	secrClient := util.NewSecretsClient(conf.Logger)
+	backend := newBackend(secrClient)
 	if err := backend.Setup(ctx, conf); err != nil {
 		return nil, err
 	}
+
+	// We set most properties in newBackend, but we need to wait
+	// until the backend has called Setup to determine the replication
+	// state.
+	isLeader := isLeader(backend.Backend.System().ReplicationState())
+	handler, err := NewCheckOutHandler(ctx, isLeader, conf.Logger, conf.StorageView, secrClient)
+	if err != nil {
+		return nil, err
+	}
+	backend.checkOutHandler = handler
 	return backend, nil
 }
 
@@ -57,6 +69,8 @@ type backend struct {
 	credCache      *cache.Cache
 	credLock       sync.Mutex
 	rotateRootLock *int32
+
+	checkOutHandler CheckOutHandler
 }
 
 func (b *backend) Invalidate(ctx context.Context, key string) {
@@ -70,6 +84,20 @@ type secretsClient interface {
 	GetPasswordLastSet(conf *client.ADConf, serviceAccountName string) (time.Time, error)
 	UpdatePassword(conf *client.ADConf, serviceAccountName string, newPassword string) error
 	UpdateRootPassword(conf *client.ADConf, bindDN string, newPassword string) error
+}
+
+func isLeader(state consts.ReplicationState) bool {
+	switch {
+	case state.HasState(consts.ReplicationPerformancePrimary):
+		return true
+	case state.HasState(consts.ReplicationDRPrimary):
+		return true
+	case state.HasState(consts.ReplicationPerformanceDisabled) && state.HasState(consts.ReplicationDRDisabled):
+		// This is Vault's state when it's running as a standalone server.
+		return true
+	default:
+		return false
+	}
 }
 
 const backendHelp = `
