@@ -199,6 +199,7 @@ func (v *InputValidator) validateInputs(ctx context.Context, storage logical.Sto
 	return nil
 }
 
+// NewOverdueWatcher creates an OverdueWatcher.
 func NewOverdueWatcher(logger hclog.Logger, origStorage logical.Storage, child CheckOutHandler) *OverdueWatcher {
 	return &OverdueWatcher{
 		storageMutex:  &sync.RWMutex{},
@@ -210,6 +211,7 @@ func NewOverdueWatcher(logger hclog.Logger, origStorage logical.Storage, child C
 	}
 }
 
+// OverdueWatcher automatically checks things in when they're due.
 type OverdueWatcher struct {
 	// We always hold onto the last storage we've seen, and a mutex for it, so that the background process that's
 	// checking in overdue service accounts will use the latest storage configured.
@@ -222,6 +224,8 @@ type OverdueWatcher struct {
 	child        CheckOutHandler
 }
 
+// CheckOut fires off a goroutine to check the service account back in when it's due. This can be cancelled
+// by calling check-in or delete.
 func (w *OverdueWatcher) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
 	w.updateStorage(storage)
 	if err := w.child.CheckOut(ctx, storage, serviceAccountName, checkOut); err != nil {
@@ -231,6 +235,7 @@ func (w *OverdueWatcher) CheckOut(ctx context.Context, storage logical.Storage, 
 	return nil
 }
 
+// RenewCheckOut extends the time until the service account will be automatically checked in.
 func (w *OverdueWatcher) RenewCheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
 	w.updateStorage(storage)
 	if err := w.child.RenewCheckOut(ctx, storage, serviceAccountName, checkOut); err != nil {
@@ -248,6 +253,7 @@ func (w *OverdueWatcher) RenewCheckOut(ctx context.Context, storage logical.Stor
 	return nil
 }
 
+// CheckIn checks a service account in, exiting the goroutine watching for its time due.
 func (w *OverdueWatcher) CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
 	w.updateStorage(storage)
 	if err := w.child.CheckIn(ctx, storage, serviceAccountName); err != nil {
@@ -257,11 +263,13 @@ func (w *OverdueWatcher) CheckIn(ctx context.Context, storage logical.Storage, s
 	return nil
 }
 
+// Status simply passes status requests through.
 func (w *OverdueWatcher) Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error) {
 	w.updateStorage(storage)
 	return w.child.Status(ctx, storage, serviceAccountName)
 }
 
+// Delete deletes a service account, exiting the goroutine watching for its time due.
 func (w *OverdueWatcher) Delete(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
 	w.updateStorage(storage)
 	if err := w.child.Delete(ctx, storage, serviceAccountName); err != nil {
@@ -327,6 +335,8 @@ func (w *OverdueWatcher) startWatching(serviceAccountName string, due time.Time)
 	}
 }
 
+// stopWatching cancels the goroutine waiting to check items in when they're due
+// and cleans everything up.
 func (w *OverdueWatcher) stopWatching(serviceAccountName string) {
 	w.mapMutex.RLock()
 	renewalChan, ok := w.renewalChans[serviceAccountName]
