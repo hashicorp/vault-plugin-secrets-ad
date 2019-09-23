@@ -3,10 +3,10 @@ package plugin
 import (
 	"context"
 	"errors"
-	"github.com/hashicorp/vault/sdk/helper/locksutil"
 	"time"
 
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
+	"github.com/hashicorp/vault/sdk/helper/locksutil"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
