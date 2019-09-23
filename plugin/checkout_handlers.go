@@ -3,7 +3,7 @@ package plugin
 import (
 	"context"
 	"errors"
-	"sync"
+	"github.com/hashicorp/vault/sdk/helper/locksutil"
 	"time"
 
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
@@ -112,7 +112,7 @@ func (v *InputValidator) validateInputs(ctx context.Context, storage logical.Sto
 // because it populates the map of locks for you.
 func NewServiceAccountLocker(wrapped CheckOutHandler) *ServiceAccountLocker {
 	return &ServiceAccountLocker{
-		locks:           &sync.Map{},
+		locks:           locksutil.CreateLocks(),
 		CheckOutHandler: wrapped,
 	}
 }
@@ -120,13 +120,13 @@ func NewServiceAccountLocker(wrapped CheckOutHandler) *ServiceAccountLocker {
 // ServiceAccountLocker protects against races.
 type ServiceAccountLocker struct {
 	// This is, in effect, being used as a map[string]*sync.RWMutex
-	locks *sync.Map
+	locks []*locksutil.LockEntry
 	CheckOutHandler
 }
 
 // CheckOut holds a write lock for the duration of the work to be done.
 func (l *ServiceAccountLocker) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
-	lock := l.getOrCreateLock(serviceAccountName)
+	lock := locksutil.LockForKey(l.locks, serviceAccountName)
 	lock.Lock()
 	defer lock.Unlock()
 	return l.CheckOutHandler.CheckOut(ctx, storage, serviceAccountName, checkOut)
@@ -134,7 +134,7 @@ func (l *ServiceAccountLocker) CheckOut(ctx context.Context, storage logical.Sto
 
 // CheckIn holds a write lock for the duration of the work to be done.
 func (l *ServiceAccountLocker) CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
-	lock := l.getOrCreateLock(serviceAccountName)
+	lock := locksutil.LockForKey(l.locks, serviceAccountName)
 	lock.Lock()
 	defer lock.Unlock()
 	return l.CheckOutHandler.CheckIn(ctx, storage, serviceAccountName)
@@ -142,7 +142,7 @@ func (l *ServiceAccountLocker) CheckIn(ctx context.Context, storage logical.Stor
 
 // Delete holds a write lock for the duration of the work to be done.
 func (l *ServiceAccountLocker) Delete(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
-	lock := l.getOrCreateLock(serviceAccountName)
+	lock := locksutil.LockForKey(l.locks, serviceAccountName)
 	lock.Lock()
 	defer lock.Unlock()
 	return l.CheckOutHandler.Delete(ctx, storage, serviceAccountName)
@@ -150,20 +150,10 @@ func (l *ServiceAccountLocker) Delete(ctx context.Context, storage logical.Stora
 
 // Status holds a read-only lock for the duration of the work to be done.
 func (l *ServiceAccountLocker) Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error) {
-	lock := l.getOrCreateLock(serviceAccountName)
-	lock.RLock()
-	defer lock.RUnlock()
+	lock := locksutil.LockForKey(l.locks, serviceAccountName)
+	lock.Lock()
+	defer lock.Unlock()
 	return l.CheckOutHandler.Status(ctx, storage, serviceAccountName)
-}
-
-func (l *ServiceAccountLocker) getOrCreateLock(serviceAccountName string) *sync.RWMutex {
-	lockIfc, ok := l.locks.Load(serviceAccountName)
-	if ok {
-		return lockIfc.(*sync.RWMutex)
-	}
-	lock := &sync.RWMutex{}
-	l.locks.Store(serviceAccountName, lock)
-	return lock
 }
 
 // PasswordHandler is responsible for rolling and storing a service account's password upon check-in.
