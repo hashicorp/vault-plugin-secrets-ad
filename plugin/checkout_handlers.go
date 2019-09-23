@@ -34,7 +34,10 @@ type CheckOut struct {
 	BorrowerEntityID    string        `json:"borrower_entity_id"`
 	BorrowerClientToken string        `json:"borrower_client_token"`
 	LendingPeriod       time.Duration `json:"lending_period"`
-	Due                 time.Time     `json:"due"`
+
+	// For unlimited lending periods, due should be set to a time in the distant
+	// future (like 100,00 years from now). This simplifies logic significantly.
+	Due time.Time `json:"due"`
 }
 
 // NewCheckOutHandler instantiates a stack of checkout handlers appropriate for this type of instance.
@@ -278,6 +281,7 @@ func (w *OverdueWatcher) updateStorage(storage logical.Storage) {
 		return
 	}
 	// If it has changed, we'll need a write lock.
+	w.storageMutex.RUnlock()
 	w.storageMutex.Lock()
 	w.latestStorage = storage
 	w.storageMutex.Unlock()
@@ -296,8 +300,8 @@ func (w *OverdueWatcher) startWatching(serviceAccountName string, due time.Time)
 	lendingPeriodTimer := time.NewTimer(due.Sub(time.Now()))
 	for {
 		select {
-		case updatedDue, ok := <-renewalChan:
-			if !ok {
+		case updatedDue, stillOpen := <-renewalChan:
+			if !stillOpen {
 				// The renewal channel was closed, signifying that we no longer need to watch
 				// this service account.
 				w.logger.Debug(fmt.Sprintf("%s was checked in", serviceAccountName))
@@ -349,7 +353,6 @@ func NewServiceAccountLocker(wrapped CheckOutHandler) *ServiceAccountLocker {
 type ServiceAccountLocker struct {
 	// This is, in effect, being used as a map[string]*sync.RWMutex
 	locks *sync.Map
-
 	CheckOutHandler
 }
 
