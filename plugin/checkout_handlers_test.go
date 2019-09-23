@@ -189,7 +189,7 @@ func TestServiceAccountLockerRace(t *testing.T) {
 		t.Skip("skipping due to short test run")
 	}
 
-	ctx, storage, serviceAccountName, checkOut := setup()
+	ctx, storage, _, checkOut := setup()
 
 	serviceAccountLocker := NewServiceAccountLocker(&PasswordHandler{
 		client:          &fakeSecretsClient{},
@@ -199,38 +199,42 @@ func TestServiceAccountLockerRace(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	start := make(chan bool)
 	done := make(chan bool)
-	numWorkers := 100
-	for i := 0; i < numWorkers; i++ {
-		go func() {
-			// Ensure all goroutines start at the same time.
-			<-start
-			// Each routine will call one function randomly on the same service account,
-			// so draw a number from 0 to 3 to pick which one....
-			switch rand.Intn(4) {
-			case 0:
-				// check it in
-				if err := serviceAccountLocker.CheckIn(ctx, storage, serviceAccountName); err != nil {
-					t.Fatal(err)
+	numWorkers := 10
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for j := 0; j < 300; j++ {
+		serviceAccountName := fmt.Sprintf("%d", r.Int())
+		for i := 0; i < numWorkers; i++ {
+			go func() {
+				// Ensure all goroutines start at the same time.
+				<-start
+				// Each routine will call one function randomly on the same service account,
+				// so draw a number from 0 to 3 to pick which one....
+				switch rand.Intn(4) {
+				case 0:
+					// check it in
+					if err := serviceAccountLocker.CheckIn(ctx, storage, serviceAccountName); err != nil {
+						t.Fatal(err)
+					}
+				case 1:
+					// check it out
+					if err := serviceAccountLocker.CheckOut(ctx, storage, serviceAccountName, checkOut); err != nil && err != ErrCurrentlyCheckedOut {
+						t.Fatal(err)
+					}
+				case 2:
+					// get its status
+					if _, err := serviceAccountLocker.Status(ctx, storage, serviceAccountName); err != nil {
+						t.Fatal(err)
+					}
+				case 3:
+					// delete it
+					if err := serviceAccountLocker.Delete(ctx, storage, serviceAccountName); err != nil {
+						t.Fatal(err)
+					}
 				}
-			case 1:
-				// check it out
-				if err := serviceAccountLocker.CheckOut(ctx, storage, serviceAccountName, checkOut); err != nil && err != ErrCurrentlyCheckedOut {
-					t.Fatal(err)
-				}
-			case 2:
-				// get its status
-				if _, err := serviceAccountLocker.Status(ctx, storage, serviceAccountName); err != nil {
-					t.Fatal(err)
-				}
-			case 3:
-				// delete it
-				if err := serviceAccountLocker.Delete(ctx, storage, serviceAccountName); err != nil {
-					t.Fatal(err)
-				}
-			}
-			// State you're done.
-			done <- true
-		}()
+				// State you're done.
+				done <- true
+			}()
+		}
 	}
 	close(start)
 	timer := time.NewTimer(time.Second * 10)
