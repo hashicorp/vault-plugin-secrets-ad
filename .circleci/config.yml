@@ -12,10 +12,10 @@ jobs:
           echo 'export GO111MODULE=on' >> $BASH_ENV
     - run:
         name: "Run Tests"
-        command: go test -v ./...
+        command: make test
     - run:
         name: "Install Gox"
         command: go get github.com/mitchellh/gox
     - run:
         name: "Run Build"
-        command: ./scripts/build.sh
+        command: make dev
