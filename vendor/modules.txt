@@ -54,6 +54,7 @@ github.com/hashicorp/vault/api
 github.com/hashicorp/vault/sdk/plugin
 github.com/hashicorp/vault/sdk/framework
 github.com/hashicorp/vault/sdk/helper/ldaputil
+github.com/hashicorp/vault/sdk/helper/strutil
 github.com/hashicorp/vault/sdk/logical
 github.com/hashicorp/vault/sdk/helper/consts
 github.com/hashicorp/vault/sdk/helper/hclutil
@@ -66,7 +67,6 @@ github.com/hashicorp/vault/sdk/plugin/pb
 github.com/hashicorp/vault/sdk/helper/errutil
 github.com/hashicorp/vault/sdk/helper/logging
 github.com/hashicorp/vault/sdk/helper/salt
-github.com/hashicorp/vault/sdk/helper/strutil
 github.com/hashicorp/vault/sdk/version
 github.com/hashicorp/vault/sdk/helper/tlsutil
 github.com/hashicorp/vault/sdk/physical

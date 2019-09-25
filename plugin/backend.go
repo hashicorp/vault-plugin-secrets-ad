@@ -22,10 +22,11 @@ func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend,
 
 func newBackend(client secretsClient) *backend {
 	adBackend := &backend{
-		client:         client,
-		roleCache:      cache.New(roleCacheExpiration, roleCacheCleanup),
-		credCache:      cache.New(credCacheExpiration, credCacheCleanup),
-		rotateRootLock: new(int32),
+		client:          client,
+		roleCache:       cache.New(roleCacheExpiration, roleCacheCleanup),
+		credCache:       cache.New(credCacheExpiration, credCacheCleanup),
+		rotateRootLock:  new(int32),
+		checkOutHandler: &NoOpHandler{}, // TODO replace with real handler in later PR, may be a different object
 	}
 	adBackend.Backend = &framework.Backend{
 		Help: backendHelp,
@@ -35,6 +36,10 @@ func newBackend(client secretsClient) *backend {
 			adBackend.pathListRoles(),
 			adBackend.pathCreds(),
 			adBackend.pathRotateCredentials(),
+
+			// The following paths are for AD credential checkout.
+			adBackend.pathReserves(),
+			adBackend.pathListReserves(),
 		},
 		PathsSpecial: &logical.Paths{
 			SealWrapStorage: []string{
@@ -57,6 +62,8 @@ type backend struct {
 	credCache      *cache.Cache
 	credLock       sync.Mutex
 	rotateRootLock *int32
+
+	checkOutHandler CheckOutHandler
 }
 
 func (b *backend) Invalidate(ctx context.Context, key string) {

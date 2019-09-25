@@ -52,6 +52,32 @@ type CheckOutHandler interface {
 	Delete(ctx context.Context, storage logical.Storage, serviceAccountName string) error
 }
 
+// TODO this will be deleted before launch, it's just a placeholder.
+// NoOpHandler is a handler that fulfills the CheckOutHandler interface during
+// development. It will be replaced with real handlers later, and deleted before
+// this feature is merged.
+// The handlers in this package are intended to also be moved into their own package
+// which will only export minimal objects, and some are intended to be combined.
+// This will be in its own discrete PR after API endpoints have been written, which
+// will fully illuminate what "hooks" are (and aren't) really needed for performing work.
+type NoOpHandler struct{}
+
+func (n *NoOpHandler) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
+	return nil
+}
+
+func (n *NoOpHandler) CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
+	return nil
+}
+
+func (n *NoOpHandler) Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error) {
+	return nil, nil
+}
+
+func (n *NoOpHandler) Delete(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
+	return nil
+}
+
 // PasswordHandler is responsible for rolling and storing a service account's password upon check-in.
 type PasswordHandler struct {
 	client secretsClient
