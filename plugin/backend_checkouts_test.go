@@ -32,8 +32,9 @@ func WriteReserve(t *testing.T) {
 		Path:      libraryPrefix + "test-reserve",
 		Storage:   testStorage,
 		Data: map[string]interface{}{
-			"service_account_names": []string{"tester1@example.com", "tester2@example.com"},
-			"lending_period":        "10h",
+			"service_account_names":        []string{"tester1@example.com", "tester2@example.com"},
+			"lending_period":               "10h",
+			"disable_check_in_enforcement": true,
 		},
 	}
 	resp, err := testBackend.HandleRequest(ctx, req)
@@ -97,6 +98,10 @@ func ReadReserve(t *testing.T) {
 	serviceAccountNames := resp.Data["service_account_names"].([]string)
 	if len(serviceAccountNames) != 2 {
 		t.Fatal("expected 2")
+	}
+	disableCheckInEnforcement := resp.Data["disable_check_in_enforcement"].(bool)
+	if !disableCheckInEnforcement {
+		t.Fatal("check-in enforcement should be disabled")
 	}
 }
 

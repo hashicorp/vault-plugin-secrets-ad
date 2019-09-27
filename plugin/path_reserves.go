@@ -15,8 +15,9 @@ import (
 const libraryPrefix = "library/"
 
 type libraryReserve struct {
-	ServiceAccountNames []string      `json:"service_account_names"`
-	LendingPeriod       time.Duration `json:"lending_period"`
+	ServiceAccountNames       []string      `json:"service_account_names"`
+	LendingPeriod             time.Duration `json:"lending_period"`
+	DisableCheckInEnforcement bool          `json:"disable_check_in_enforcement"`
 }
 
 func (b *backend) pathListReserves() *framework.Path {
@@ -58,6 +59,11 @@ func (b *backend) pathReserves() *framework.Path {
 				Description: "In seconds, the default length of time before check-outs will expire.",
 				Default:     24 * 60 * 60, // 24 hours
 			},
+			"disable_check_in_enforcement": {
+				Type:        framework.TypeBool,
+				Description: "Disable the default behavior of requiring that check-ins are performed by the entity that checked them out.",
+				Default:     false,
+			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.CreateOperation: &framework.PathOperation{
@@ -95,6 +101,7 @@ func (b *backend) operationReserveCreate(ctx context.Context, req *logical.Reque
 	reserveName := fieldData.Get("name").(string)
 	serviceAccountNames := fieldData.Get("service_account_names").([]string)
 	lendingPeriod := time.Duration(fieldData.Get("lending_period").(int)) * time.Second
+	disableCheckInEnforcement := fieldData.Get("disable_check_in_enforcement").(bool)
 
 	if len(serviceAccountNames) == 0 {
 		return logical.ErrorResponse(`"service_account_names" must be provided`), nil
@@ -127,8 +134,9 @@ func (b *backend) operationReserveCreate(ctx context.Context, req *logical.Reque
 	}
 
 	reserve := &libraryReserve{
-		ServiceAccountNames: serviceAccountNames,
-		LendingPeriod:       lendingPeriod,
+		ServiceAccountNames:       serviceAccountNames,
+		LendingPeriod:             lendingPeriod,
+		DisableCheckInEnforcement: disableCheckInEnforcement,
 	}
 	if err := storeReserve(ctx, req.Storage, reserveName, reserve); err != nil {
 		return nil, err
@@ -150,6 +158,12 @@ func (b *backend) operationReserveUpdate(ctx context.Context, req *logical.Reque
 		lendingPeriodRaw = fieldData.Schema["lending_period"].Default
 	}
 	lendingPeriod := time.Duration(lendingPeriodRaw.(int)) * time.Second
+
+	disableCheckInEnforcementRaw, enforcementSent := fieldData.GetOk("disable_check_in_enforcement")
+	if !enforcementSent {
+		disableCheckInEnforcementRaw = false
+	}
+	disableCheckInEnforcement := disableCheckInEnforcementRaw.(bool)
 
 	reserve, err := readReserve(ctx, req.Storage, reserveName)
 	if err != nil {
@@ -205,6 +219,9 @@ func (b *backend) operationReserveUpdate(ctx context.Context, req *logical.Reque
 	if lendingPeriodSent {
 		reserve.LendingPeriod = lendingPeriod
 	}
+	if enforcementSent {
+		reserve.DisableCheckInEnforcement = disableCheckInEnforcement
+	}
 	if err := storeReserve(ctx, req.Storage, reserveName, reserve); err != nil {
 		return nil, err
 	}
@@ -222,8 +239,9 @@ func (b *backend) operationReserveRead(ctx context.Context, req *logical.Request
 	}
 	return &logical.Response{
 		Data: map[string]interface{}{
-			"service_account_names": reserve.ServiceAccountNames,
-			"lending_period":        int64(reserve.LendingPeriod.Seconds()),
+			"service_account_names":        reserve.ServiceAccountNames,
+			"lending_period":               int64(reserve.LendingPeriod.Seconds()),
+			"disable_check_in_enforcement": reserve.DisableCheckInEnforcement,
 		},
 	}, nil
 }
