@@ -3,10 +3,9 @@ package plugin
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
+	"time"
 )
 
 func (b *backend) pathReserveStatus() *framework.Path {
@@ -53,12 +52,17 @@ func (b *backend) operationReserveStatus(ctx context.Context, req *logical.Reque
 			}
 		}
 
-		// It's checked out, so build a map giving all the things.
 		status := map[string]interface{}{
-			"available":      checkOut.IsAvailable,
-			"lending_period": int64(checkOut.LendingPeriod.Seconds()),
-			"due":            checkOut.Due.Format(time.RFC3339Nano),
+			"available": checkOut.IsAvailable,
 		}
+		if checkOut.IsAvailable {
+			// We only omit all other fields if the checkout is currently available,
+			// because they're only relevant to accounts that aren't checked out.
+			respData[serviceAccountName] = status
+			continue
+		}
+		status["lending_period"] = int64(checkOut.LendingPeriod.Seconds())
+		status["due"] = checkOut.Due.Format(time.RFC3339Nano)
 		if checkOut.BorrowerClientToken != "" {
 			status["borrower_client_token"] = checkOut.BorrowerClientToken
 		} else {
