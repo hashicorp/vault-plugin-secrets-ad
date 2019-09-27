@@ -32,7 +32,7 @@ func WriteReserve(t *testing.T) {
 		Path:      libraryPrefix + "test-reserve",
 		Storage:   testStorage,
 		Data: map[string]interface{}{
-			"service_account_names": []string{"tester1@example.com", "tester20@example.com"},
+			"service_account_names": []string{"tester1@example.com", "tester2@example.com"},
 			"lending_period":        "10h",
 		},
 	}
@@ -51,7 +51,7 @@ func AddAnotherServiceAccount(t *testing.T) {
 		Path:      libraryPrefix + "test-reserve",
 		Storage:   testStorage,
 		Data: map[string]interface{}{
-			"service_account_names": []string{"tester1@example.com", "tester21@example.com", "tester3@example.com"},
+			"service_account_names": []string{"tester1@example.com", "tester2@example.com", "tester3@example.com"},
 		},
 	}
 	resp, err := testBackend.HandleRequest(ctx, req)
@@ -69,7 +69,7 @@ func RemoveServiceAccount(t *testing.T) {
 		Path:      libraryPrefix + "test-reserve",
 		Storage:   testStorage,
 		Data: map[string]interface{}{
-			"service_account_names": []string{"tester1@example.com", "tester22@example.com"},
+			"service_account_names": []string{"tester1@example.com", "tester2@example.com"},
 		},
 	}
 	resp, err := testBackend.HandleRequest(ctx, req)
