@@ -40,6 +40,11 @@ func Test_StorageHandler(t *testing.T) {
 
 	storageHandler := &StorageHandler{}
 
+	// Service accounts must initially be checked in to the library
+	if err := storageHandler.CheckIn(ctx, storage, serviceAccountName); err != nil {
+		t.Fatal(err)
+	}
+
 	// If we try to check something out for the first time, it should succeed.
 	if err := storageHandler.CheckOut(ctx, storage, serviceAccountName, testCheckOut); err != nil {
 		t.Fatal(err)
@@ -54,7 +59,7 @@ func Test_StorageHandler(t *testing.T) {
 		t.Fatal("storedCheckOut should not be nil")
 	}
 	if !reflect.DeepEqual(testCheckOut, storedCheckOut) {
-		t.Fatalf(fmt.Sprintf(`expected %s to be equal to %s`, testCheckOut, storedCheckOut))
+		t.Fatalf(fmt.Sprintf(`expected %+v to be equal to %+v`, testCheckOut, storedCheckOut))
 	}
 
 	// If we try to check something out that's already checked out, we should
@@ -75,7 +80,7 @@ func Test_StorageHandler(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if storedCheckOut != nil {
+	if !storedCheckOut.IsAvailable {
 		t.Fatal("storedCheckOut should be nil")
 	}
 
