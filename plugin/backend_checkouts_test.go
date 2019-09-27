@@ -128,7 +128,11 @@ func ListReserves(t *testing.T) {
 	if resp == nil {
 		t.Fatal("expected a response")
 	}
-	if "test-reserve" != resp.Data["keys"].([]string)[0] {
+	listedKeys := resp.Data["keys"].([]string)
+	if len(listedKeys) != 1 {
+		t.Fatalf("expected 1 key but received %s", listedKeys)
+	}
+	if "test-reserve" != listedKeys[0] {
 		t.Fatal("expected test-reserve to be the only listed item")
 	}
 }
