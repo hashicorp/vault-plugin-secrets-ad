@@ -271,8 +271,7 @@ func readReserve(ctx context.Context, storage logical.Storage, reserveName strin
 	return reserve, nil
 }
 
-// storeReserve is only intended to be used inside path_reserves.go, because this is the only place
-// that is intended to be editing reserves.
+// storeReserve stores a library reserve.
 func storeReserve(ctx context.Context, storage logical.Storage, reserveName string, reserve *libraryReserve) error {
 	entry, err := logical.StorageEntryJSON(libraryPrefix+reserveName, reserve)
 	if err != nil {
