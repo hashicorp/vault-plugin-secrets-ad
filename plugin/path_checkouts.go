@@ -3,9 +3,10 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
-	"time"
 )
 
 func (b *backend) pathReserveStatus() *framework.Path {
