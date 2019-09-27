@@ -16,6 +16,7 @@ func TestCheckOuts(t *testing.T) {
 	// Exercise all reserve endpoints.
 	t.Run("write reserve", WriteReserve)
 	t.Run("read reserve", ReadReserve)
+	t.Run("read reserve status", ReadReserveStatus)
 	t.Run("write conflicting reserve", WriteReserveWithConflictingServiceAccounts)
 	t.Run("list reserves", ListReserves)
 	t.Run("delete reserve", DeleteReserve)
@@ -97,6 +98,28 @@ func ReadReserve(t *testing.T) {
 	serviceAccountNames := resp.Data["service_account_names"].([]string)
 	if len(serviceAccountNames) != 2 {
 		t.Fatal("expected 2")
+	}
+}
+
+func ReadReserveStatus(t *testing.T) {
+	req := &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      libraryPrefix + "test-reserve/status",
+		Storage:   testStorage,
+	}
+	resp, err := testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	if resp == nil {
+		t.Fatal("expected a response")
+	}
+	if len(resp.Data) != 2 {
+		t.Fatal("length should be 2 because there are two service accounts in this reserve")
+	}
+	testerStatus := resp.Data["tester1@example.com"].(map[string]interface{})
+	if !testerStatus["available"].(bool) {
+		t.Fatal("should be available for checkout")
 	}
 }
 
