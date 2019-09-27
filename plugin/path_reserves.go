@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
+// TODO need to address raciness, this is planned for a subsequent PR when the CheckOutHandler model is finalized.
 const libraryPrefix = "library/"
 
 type libraryReserve struct {
@@ -98,9 +99,33 @@ func (b *backend) operationReserveCreate(ctx context.Context, req *logical.Reque
 	if len(serviceAccountNames) == 0 {
 		return logical.ErrorResponse(`"service_account_names" must be provided`), nil
 	}
-	if err := ensureNotInAnotherReserve(ctx, req.Storage, serviceAccountNames); err != nil {
-		return nil, err
+	// Ensure these service accounts aren't already managed by another reserve.
+	var alreadyManagedErr error
+	for _, serviceAccountName := range serviceAccountNames {
+		if _, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName); err != nil {
+			if err == ErrNotFound {
+				// This is what we want to see.
+				continue
+			}
+			// There is a more persistent error reaching storage.
+			return nil, err
+		}
+		// If we reach here, the error is nil. That means there's an existing CheckOut for this
+		// service account.
+		alreadyManagedErr = multierror.Append(alreadyManagedErr, fmt.Errorf("%s is already managed by another reserve, please remove it and try again", serviceAccountName))
 	}
+	if alreadyManagedErr != nil {
+		return logical.ErrorResponse(alreadyManagedErr.Error()), nil
+	}
+
+	// Now we need to check in all these service accounts so they'll be listed as managed by this
+	// plugin and available.
+	for _, serviceAccountName := range serviceAccountNames {
+		if err := b.checkOutHandler.CheckIn(ctx, req.Storage, serviceAccountName); err != nil {
+			return nil, err
+		}
+	}
+
 	reserve := &libraryReserve{
 		ServiceAccountNames: serviceAccountNames,
 		LendingPeriod:       lendingPeriod,
@@ -135,20 +160,38 @@ func (b *backend) operationReserveUpdate(ctx context.Context, req *logical.Reque
 	}
 	if newServiceAccountNamesSent {
 		// For new service accounts, we need to make sure they're not already handled by another reserve.
-		var beingAdded []string
+		var alreadyManagedErr error
 		for _, newServiceAccountName := range newServiceAccountNames {
 			if strutil.StrListContains(reserve.ServiceAccountNames, newServiceAccountName) {
 				// It's not new.
 				continue
 			}
-			beingAdded = append(beingAdded, newServiceAccountName)
+			// It's new, let's make sure it's not already managed elsewhere.
+			if _, err := b.checkOutHandler.Status(ctx, req.Storage, newServiceAccountName); err != nil {
+				if err == ErrNotFound {
+					// This is what we want to see.
+					continue
+				}
+				// There is a more persistent error reaching storage.
+				return nil, err
+			}
+			// If we reach here, the error is nil. That means there's an existing CheckOut for this
+			// service account.
+			alreadyManagedErr = multierror.Append(alreadyManagedErr, fmt.Errorf("%s is already managed by another reserve, please remove it and try again", newServiceAccountName))
 		}
-		if len(beingAdded) > 0 {
-			if err := ensureNotInAnotherReserve(ctx, req.Storage, beingAdded); err != nil {
+		if alreadyManagedErr != nil {
+			return logical.ErrorResponse(alreadyManagedErr.Error()), nil
+		}
+
+		// Now we need to check in all these service accounts so they'll be listed as managed by this
+		// plugin and available.
+		for _, newServiceAccountName := range newServiceAccountNames {
+			if err := b.checkOutHandler.CheckIn(ctx, req.Storage, newServiceAccountName); err != nil {
 				return nil, err
 			}
 		}
-		// For service accounts we won't be handling anymore, we need to remove their passwords
+
+		// For service accounts we won't be handling anymore, we need to remove their passwords and delete them
 		// from storage.
 		var deletionErrs error
 		for _, prevServiceAccountName := range reserve.ServiceAccountNames {
@@ -200,7 +243,7 @@ func (b *backend) operationReserveDelete(ctx context.Context, req *logical.Reque
 	if reserve == nil {
 		return nil, nil
 	}
-	// We need to remove all the passwords we'd stored for these service accounts.
+	// We need to remove all the items we'd stored for these service accounts.
 	var deletionErrs error
 	for _, serviceAccountName := range reserve.ServiceAccountNames {
 		if err := b.deleteReserveServiceAccount(ctx, req.Storage, serviceAccountName); err != nil {
@@ -244,43 +287,17 @@ func storeReserve(ctx context.Context, storage logical.Storage, reserveName stri
 	return storage.Put(ctx, entry)
 }
 
-// ensureNotInAnotherReserve is a helper method for checking that new service accounts aren't already being
-// managed by another reserve. This is because we would experience a lot of unexpected behavior if the same
-// service account were being checked in (with its password rolled) at different times through another
-// reserve, and it could be difficult to debug because it'd be happening outside the times we'd be looking
-// at in the logs.
-func ensureNotInAnotherReserve(ctx context.Context, storage logical.Storage, newServiceAccountNames []string) error {
-	// Gather up all the service accounts currently being managed.
-	preExistingReserveNames, err := storage.List(ctx, libraryPrefix)
+// deleteReserveServiceAccount errors if an account can't presently be deleted, or deletes it.
+func (b *backend) deleteReserveServiceAccount(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
+	checkOut, err := b.checkOutHandler.Status(ctx, storage, serviceAccountName)
 	if err != nil {
 		return err
 	}
-	preExistingServiceAccountNames := make(map[string]bool)
-	for _, preExistingReserveName := range preExistingReserveNames {
-		preExistingReserve, err := readReserve(ctx, storage, preExistingReserveName)
-		if err != nil {
-			return err
-		}
-		for _, preExistingServiceAccountName := range preExistingReserve.ServiceAccountNames {
-			preExistingServiceAccountNames[preExistingServiceAccountName] = true
-		}
+	if checkOut == nil {
+		// Nothing further to do here.
+		return nil
 	}
-
-	// Check through the new ones to make sure they're not already in another reserve.
-	var preExistenceErrs error
-	for _, newServiceAccountName := range newServiceAccountNames {
-		if _, exists := preExistingServiceAccountNames[newServiceAccountName]; exists {
-			preExistenceErrs = multierror.Append(preExistenceErrs, fmt.Errorf(`can't append %s because it's already managed by another reserve`, newServiceAccountName))
-		}
-	}
-	return preExistenceErrs
-}
-
-// deleteReserveServiceAccount errors if an account can't presently be deleted, or deletes it.
-func (b *backend) deleteReserveServiceAccount(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
-	if checkOut, err := b.checkOutHandler.Status(ctx, storage, serviceAccountName); err != nil {
-		return err
-	} else if checkOut != nil {
+	if !checkOut.IsAvailable {
 		return fmt.Errorf(`"%s" can't be deleted because it is currently checked out'`, serviceAccountName)
 	}
 	if err := b.checkOutHandler.Delete(ctx, storage, serviceAccountName); err != nil {

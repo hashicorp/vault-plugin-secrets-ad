@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
-const checkoutStoragePrefix = "library/"
+const checkoutStoragePrefix = "checkout/"
 
 var (
 	// ErrCurrentlyCheckedOut is returned when a check-out request is received
@@ -23,6 +23,7 @@ var (
 // CheckOut provides information for a service account that is currently
 // checked out.
 type CheckOut struct {
+	IsAvailable         bool          `json:"is_available"`
 	BorrowerEntityID    string        `json:"borrower_entity_id"`
 	BorrowerClientToken string        `json:"borrower_client_token"`
 	LendingPeriod       time.Duration `json:"lending_period"`
@@ -34,7 +35,8 @@ type CheckOut struct {
 // that help us build our confidence in the code.
 type CheckOutHandler interface {
 	// CheckOut attempts to check out a service account. If the account is unavailable, it returns
-	// ErrCurrentlyCheckedOut.
+	// ErrCurrentlyCheckedOut. If the service account isn't managed by this plugin, it returns
+	// ErrNotFound.
 	CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error
 
 	// CheckIn attempts to check in a service account. If an error occurs, the account remains checked out
@@ -43,39 +45,12 @@ type CheckOutHandler interface {
 	CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error
 
 	// Status returns either:
-	//  - A *CheckOut and nil error if the serviceAccountName is currently checked out.
-	//  - A nil *CheckOut and nil error if the serviceAccountName is not currently checked out.
-	//  - A nil *CheckOut and populated err if the state cannot be determined.
+	//  - A *CheckOut and nil error if the serviceAccountName is currently managed by this engine.
+	//  - A nil *Checkout and ErrNotFound if the serviceAccountName is not currently managed by this engine.
 	Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error)
 
 	// Delete cleans up anything we were tracking from the service account that we will no longer need.
 	Delete(ctx context.Context, storage logical.Storage, serviceAccountName string) error
-}
-
-// TODO this will be deleted before launch, it's just a placeholder.
-// NoOpHandler is a handler that fulfills the CheckOutHandler interface during
-// development. It will be replaced with real handlers later, and deleted before
-// this feature is merged.
-// The handlers in this package are intended to also be moved into their own package
-// which will only export minimal objects, and some are intended to be combined.
-// This will be in its own discrete PR after API endpoints have been written, which
-// will fully illuminate what "hooks" are (and aren't) really needed for performing work.
-type NoOpHandler struct{}
-
-func (n *NoOpHandler) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
-	return nil
-}
-
-func (n *NoOpHandler) CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
-	return nil
-}
-
-func (n *NoOpHandler) Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error) {
-	return nil, nil
-}
-
-func (n *NoOpHandler) Delete(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
-	return nil
 }
 
 // PasswordHandler is responsible for rolling and storing a service account's password upon check-in.
@@ -166,6 +141,7 @@ type StorageHandler struct{}
 // CheckOut will return:
 //  - Nil if it was successfully able to perform the requested check out.
 //  - ErrCurrentlyCheckedOut if the account was already checked out.
+//  - ErrNotFound if the service account isn't currently managed by this engine.
 //  - Some other err if it was unable to complete successfully.
 func (h *StorageHandler) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
 	if err := validateInputs(ctx, storage, serviceAccountName, checkOut, true); err != nil {
@@ -174,8 +150,16 @@ func (h *StorageHandler) CheckOut(ctx context.Context, storage logical.Storage, 
 	// Check if the service account is currently checked out.
 	if entry, err := storage.Get(ctx, checkoutStoragePrefix+serviceAccountName); err != nil {
 		return err
-	} else if entry != nil {
-		return ErrCurrentlyCheckedOut
+	} else if entry == nil {
+		return ErrNotFound
+	} else {
+		currentCheckOut := &CheckOut{}
+		if err := entry.DecodeJSON(currentCheckOut); err != nil {
+			return err
+		}
+		if !currentCheckOut.IsAvailable {
+			return ErrCurrentlyCheckedOut
+		}
 	}
 	// Since it's not, store the new check-out.
 	entry, err := logical.StorageEntryJSON(checkoutStoragePrefix+serviceAccountName, checkOut)
@@ -188,14 +172,20 @@ func (h *StorageHandler) CheckOut(ctx context.Context, storage logical.Storage, 
 // CheckIn will return nil error if it was able to successfully check in an account.
 // If the account was already checked in, it still returns no error.
 func (h *StorageHandler) CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
-	// We simply delete checkouts from storage when they're checked in.
-	return h.Delete(ctx, storage, serviceAccountName)
+	// Store a check-out status indicating it's available.
+	checkOut := &CheckOut{
+		IsAvailable: true,
+	}
+	entry, err := logical.StorageEntryJSON(checkoutStoragePrefix+serviceAccountName, checkOut)
+	if err != nil {
+		return err
+	}
+	return storage.Put(ctx, entry)
 }
 
 // Status returns either:
-//  - A *CheckOut and nil error if the serviceAccountName is currently checked out.
-//  - A nil *CheckOut and nil error if the serviceAccountName is not currently checked out.
-//  - A nil *CheckOut and populated err if the state cannot be determined.
+//  - A *CheckOut and nil error if the serviceAccountName is currently managed by this engine.
+//  - A nil *Checkout and ErrNotFound if the serviceAccountName is not currently managed by this engine.
 func (h *StorageHandler) Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error) {
 	if err := validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
 		return nil, err
@@ -205,7 +195,7 @@ func (h *StorageHandler) Status(ctx context.Context, storage logical.Storage, se
 		return nil, err
 	}
 	if entry == nil {
-		return nil, nil
+		return nil, ErrNotFound
 	}
 	checkOut := &CheckOut{}
 	if err := entry.DecodeJSON(checkOut); err != nil {

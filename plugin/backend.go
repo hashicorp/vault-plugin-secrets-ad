@@ -22,11 +22,14 @@ func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend,
 
 func newBackend(client secretsClient) *backend {
 	adBackend := &backend{
-		client:          client,
-		roleCache:       cache.New(roleCacheExpiration, roleCacheCleanup),
-		credCache:       cache.New(credCacheExpiration, credCacheCleanup),
-		rotateRootLock:  new(int32),
-		checkOutHandler: &NoOpHandler{}, // TODO replace with real handler in later PR, may be a different object
+		client:         client,
+		roleCache:      cache.New(roleCacheExpiration, roleCacheCleanup),
+		credCache:      cache.New(credCacheExpiration, credCacheCleanup),
+		rotateRootLock: new(int32),
+		checkOutHandler: &PasswordHandler{ // TODO the object model may change here but we do need to place something realistic here for testing
+			client: client,
+			child:  &StorageHandler{},
+		},
 	}
 	adBackend.Backend = &framework.Backend{
 		Help: backendHelp,
