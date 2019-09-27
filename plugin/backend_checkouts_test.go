@@ -41,7 +41,7 @@ func WriteReserve(t *testing.T) {
 		t.Fatal(err)
 	}
 	if resp != nil {
-		t.Fatal("expected no response because Vault generally doesn't return it for posts")
+		t.Fatalf("expected an empty response, got: %v", resp)
 	}
 }
 
