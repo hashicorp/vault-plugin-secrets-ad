@@ -159,14 +159,11 @@ func (b *backend) operationReserveUpdate(ctx context.Context, req *logical.Reque
 		return logical.ErrorResponse(`"%s" doesn't exist`, reserveName), nil
 	}
 	if newServiceAccountNamesSent {
+		beingAdded := strutil.Difference(newServiceAccountNames, reserve.ServiceAccountNames, true)
+
 		// For new service accounts, we need to make sure they're not already handled by another reserve.
 		var alreadyManagedErr error
-		for _, newServiceAccountName := range newServiceAccountNames {
-			if strutil.StrListContains(reserve.ServiceAccountNames, newServiceAccountName) {
-				// It's not new.
-				continue
-			}
-			// It's new, let's make sure it's not already managed elsewhere.
+		for _, newServiceAccountName := range beingAdded {
 			if _, err := b.checkOutHandler.Status(ctx, req.Storage, newServiceAccountName); err != nil {
 				if err == ErrNotFound {
 					// This is what we want to see.
@@ -185,7 +182,7 @@ func (b *backend) operationReserveUpdate(ctx context.Context, req *logical.Reque
 
 		// Now we need to check in all these service accounts so they'll be listed as managed by this
 		// plugin and available.
-		for _, newServiceAccountName := range newServiceAccountNames {
+		for _, newServiceAccountName := range beingAdded {
 			if err := b.checkOutHandler.CheckIn(ctx, req.Storage, newServiceAccountName); err != nil {
 				return nil, err
 			}
@@ -193,12 +190,9 @@ func (b *backend) operationReserveUpdate(ctx context.Context, req *logical.Reque
 
 		// For service accounts we won't be handling anymore, we need to remove their passwords and delete them
 		// from storage.
+		beingDeleted := strutil.Difference(reserve.ServiceAccountNames, newServiceAccountNames, true)
 		var deletionErrs error
-		for _, prevServiceAccountName := range reserve.ServiceAccountNames {
-			if strutil.StrListContains(newServiceAccountNames, prevServiceAccountName) {
-				// This previous account isn't being deleted.
-				continue
-			}
+		for _, prevServiceAccountName := range beingDeleted {
 			if err := b.deleteReserveServiceAccount(ctx, req.Storage, prevServiceAccountName); err != nil {
 				deletionErrs = multierror.Append(deletionErrs, err)
 			}
