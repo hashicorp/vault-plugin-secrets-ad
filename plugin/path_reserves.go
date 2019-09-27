@@ -93,11 +93,7 @@ func (b *backend) operationReserveExistenceCheck(ctx context.Context, req *logic
 func (b *backend) operationReserveCreate(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
 	reserveName := fieldData.Get("name").(string)
 	serviceAccountNames := fieldData.Get("service_account_names").([]string)
-	lendingPeriodRaw, lendingPeriodSent := fieldData.GetOk("lending_period")
-	if !lendingPeriodSent {
-		lendingPeriodRaw = fieldData.Schema["lending_period"].Default
-	}
-	lendingPeriod := time.Duration(lendingPeriodRaw.(int)) * time.Second
+	lendingPeriod := time.Duration(fieldData.Get("lending_period").(int)) * time.Second
 
 	if len(serviceAccountNames) == 0 {
 		return logical.ErrorResponse(`"service_account_names" must be provided`), nil
