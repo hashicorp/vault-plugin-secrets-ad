@@ -17,6 +17,8 @@ func TestCheckOuts(t *testing.T) {
 	t.Run("write reserve", WriteReserve)
 	t.Run("read reserve", ReadReserve)
 	t.Run("read reserve status", ReadReserveStatus)
+	t.Run("write reserve toggle off", WriteReserveToggleOff)
+	t.Run("read reserve toggle off", ReadReserveToggleOff)
 	t.Run("write conflicting reserve", WriteReserveWithConflictingServiceAccounts)
 	t.Run("list reserves", ListReserves)
 	t.Run("delete reserve", DeleteReserve)
@@ -33,8 +35,9 @@ func WriteReserve(t *testing.T) {
 		Path:      libraryPrefix + "test-reserve",
 		Storage:   testStorage,
 		Data: map[string]interface{}{
-			"service_account_names": []string{"tester1@example.com", "tester2@example.com"},
-			"lending_period":        "10h",
+			"service_account_names":        []string{"tester1@example.com", "tester2@example.com"},
+			"lending_period":               "10h",
+			"disable_check_in_enforcement": true,
 		},
 	}
 	resp, err := testBackend.HandleRequest(ctx, req)
@@ -98,6 +101,53 @@ func ReadReserve(t *testing.T) {
 	serviceAccountNames := resp.Data["service_account_names"].([]string)
 	if len(serviceAccountNames) != 2 {
 		t.Fatal("expected 2")
+	}
+	disableCheckInEnforcement := resp.Data["disable_check_in_enforcement"].(bool)
+	if !disableCheckInEnforcement {
+		t.Fatal("check-in enforcement should be disabled")
+	}
+}
+
+func WriteReserveToggleOff(t *testing.T) {
+	req := &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      libraryPrefix + "test-reserve",
+		Storage:   testStorage,
+		Data: map[string]interface{}{
+			"service_account_names":        []string{"tester1@example.com", "tester2@example.com"},
+			"lending_period":               "10h",
+			"disable_check_in_enforcement": false,
+		},
+	}
+	resp, err := testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	if resp != nil {
+		t.Fatalf("expected an empty response, got: %v", resp)
+	}
+}
+
+func ReadReserveToggleOff(t *testing.T) {
+	req := &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      libraryPrefix + "test-reserve",
+		Storage:   testStorage,
+	}
+	resp, err := testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	if resp == nil {
+		t.Fatal("expected a response")
+	}
+	serviceAccountNames := resp.Data["service_account_names"].([]string)
+	if len(serviceAccountNames) != 2 {
+		t.Fatal("expected 2")
+	}
+	disableCheckInEnforcement := resp.Data["disable_check_in_enforcement"].(bool)
+	if disableCheckInEnforcement {
+		t.Fatal("check-in enforcement should be enabled")
 	}
 }
 
