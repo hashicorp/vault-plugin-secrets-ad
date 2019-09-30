@@ -41,6 +41,7 @@ func newBackend(client secretsClient) *backend {
 			adBackend.pathRotateCredentials(),
 
 			// The following paths are for AD credential checkout.
+			adBackend.pathReserveStatus(),
 			adBackend.pathReserves(),
 			adBackend.pathListReserves(),
 		},
