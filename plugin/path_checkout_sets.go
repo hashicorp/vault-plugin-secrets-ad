@@ -14,7 +14,7 @@ import (
 // TODO need to address raciness, this is planned for a subsequent PR when the CheckOutHandler model is finalized.
 const libraryPrefix = "library/"
 
-type libraryReserve struct {
+type librarySet struct {
 	ServiceAccountNames       []string      `json:"service_account_names"`
 	TTL                       time.Duration `json:"ttl"`
 	MaxTTL                    time.Duration `json:"max_ttl"`
@@ -26,15 +26,15 @@ func (b *backend) pathListReserves() *framework.Path {
 		Pattern: libraryPrefix + "?$",
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ListOperation: &framework.PathOperation{
-				Callback: b.reserveListOperation,
+				Callback: b.setListOperation,
 			},
 		},
-		HelpSynopsis:    pathListReservesHelpSyn,
-		HelpDescription: pathListReservesHelpDesc,
+		HelpSynopsis:    pathListSetsHelpSyn,
+		HelpDescription: pathListSetsHelpDesc,
 	}
 }
 
-func (b *backend) reserveListOperation(ctx context.Context, req *logical.Request, _ *framework.FieldData) (*logical.Response, error) {
+func (b *backend) setListOperation(ctx context.Context, req *logical.Request, _ *framework.FieldData) (*logical.Response, error) {
 	keys, err := req.Storage.List(ctx, libraryPrefix)
 	if err != nil {
 		return nil, err
@@ -48,12 +48,12 @@ func (b *backend) pathReserves() *framework.Path {
 		Fields: map[string]*framework.FieldSchema{
 			"name": {
 				Type:        framework.TypeLowerCaseString,
-				Description: "Name of the reserve",
+				Description: "Name of the set.",
 				Required:    true,
 			},
 			"service_account_names": {
 				Type:        framework.TypeCommaStringSlice,
-				Description: "The username/logon name for the service accounts with which this reserve will be associated.",
+				Description: "The username/logon name for the service accounts with which this set will be associated.",
 			},
 			"ttl": {
 				Type:        framework.TypeDurationSecond,
@@ -74,37 +74,37 @@ func (b *backend) pathReserves() *framework.Path {
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.CreateOperation: &framework.PathOperation{
 				Callback: b.operationReserveCreate,
-				Summary:  "Create a library reserve.",
+				Summary:  "Create a library set.",
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.operationReserveUpdate,
-				Summary:  "Update a library reserve.",
+				Summary:  "Update a library set.",
 			},
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.operationReserveRead,
-				Summary:  "Read a library reserve.",
+				Summary:  "Read a library set.",
 			},
 			logical.DeleteOperation: &framework.PathOperation{
 				Callback: b.operationReserveDelete,
-				Summary:  "Delete a library reserve.",
+				Summary:  "Delete a library set.",
 			},
 		},
-		ExistenceCheck:  b.operationReserveExistenceCheck,
-		HelpSynopsis:    reserveHelpSynopsis,
-		HelpDescription: reserveHelpDescription,
+		ExistenceCheck:  b.operationSetExistenceCheck,
+		HelpSynopsis:    setHelpSynopsis,
+		HelpDescription: setHelpDescription,
 	}
 }
 
-func (b *backend) operationReserveExistenceCheck(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (bool, error) {
-	reserve, err := readReserve(ctx, req.Storage, fieldData.Get("name").(string))
+func (b *backend) operationSetExistenceCheck(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (bool, error) {
+	set, err := readSet(ctx, req.Storage, fieldData.Get("name").(string))
 	if err != nil {
 		return false, err
 	}
-	return reserve != nil, nil
+	return set != nil, nil
 }
 
 func (b *backend) operationReserveCreate(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
-	reserveName := fieldData.Get("name").(string)
+	setName := fieldData.Get("name").(string)
 	serviceAccountNames := fieldData.Get("service_account_names").([]string)
 	ttl := time.Duration(fieldData.Get("ttl").(int)) * time.Second
 	maxTTL := time.Duration(fieldData.Get("max_ttl").(int)) * time.Second
@@ -113,7 +113,7 @@ func (b *backend) operationReserveCreate(ctx context.Context, req *logical.Reque
 	if len(serviceAccountNames) == 0 {
 		return logical.ErrorResponse(`"service_account_names" must be provided`), nil
 	}
-	// Ensure these service accounts aren't already managed by another reserve.
+	// Ensure these service accounts aren't already managed by another check-out set.
 	var alreadyManagedErr error
 	for _, serviceAccountName := range serviceAccountNames {
 		if _, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName); err != nil {
@@ -126,7 +126,7 @@ func (b *backend) operationReserveCreate(ctx context.Context, req *logical.Reque
 		}
 		// If we reach here, the error is nil. That means there's an existing CheckOut for this
 		// service account.
-		alreadyManagedErr = multierror.Append(alreadyManagedErr, fmt.Errorf("%s is already managed by another reserve, please remove it and try again", serviceAccountName))
+		alreadyManagedErr = multierror.Append(alreadyManagedErr, fmt.Errorf("%s is already managed by another set, please remove it and try again", serviceAccountName))
 	}
 	if alreadyManagedErr != nil {
 		return logical.ErrorResponse(alreadyManagedErr.Error()), nil
@@ -140,20 +140,20 @@ func (b *backend) operationReserveCreate(ctx context.Context, req *logical.Reque
 		}
 	}
 
-	reserve := &libraryReserve{
+	set := &librarySet{
 		ServiceAccountNames:       serviceAccountNames,
 		TTL:                       ttl,
 		MaxTTL:                    maxTTL,
 		DisableCheckInEnforcement: disableCheckInEnforcement,
 	}
-	if err := storeReserve(ctx, req.Storage, reserveName, reserve); err != nil {
+	if err := storeSet(ctx, req.Storage, setName, set); err != nil {
 		return nil, err
 	}
 	return nil, nil
 }
 
 func (b *backend) operationReserveUpdate(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
-	reserveName := fieldData.Get("name").(string)
+	setName := fieldData.Get("name").(string)
 
 	newServiceAccountNamesRaw, newServiceAccountNamesSent := fieldData.GetOk("service_account_names")
 	var newServiceAccountNames []string
@@ -179,17 +179,17 @@ func (b *backend) operationReserveUpdate(ctx context.Context, req *logical.Reque
 	}
 	disableCheckInEnforcement := disableCheckInEnforcementRaw.(bool)
 
-	reserve, err := readReserve(ctx, req.Storage, reserveName)
+	set, err := readSet(ctx, req.Storage, setName)
 	if err != nil {
 		return nil, err
 	}
-	if reserve == nil {
-		return logical.ErrorResponse(`"%s" doesn't exist`, reserveName), nil
+	if set == nil {
+		return logical.ErrorResponse(`"%s" doesn't exist`, setName), nil
 	}
 	if newServiceAccountNamesSent {
-		beingAdded := strutil.Difference(newServiceAccountNames, reserve.ServiceAccountNames, true)
+		beingAdded := strutil.Difference(newServiceAccountNames, set.ServiceAccountNames, true)
 
-		// For new service accounts, we need to make sure they're not already handled by another reserve.
+		// For new service accounts, we need to make sure they're not already handled by another set.
 		var alreadyManagedErr error
 		for _, newServiceAccountName := range beingAdded {
 			if _, err := b.checkOutHandler.Status(ctx, req.Storage, newServiceAccountName); err != nil {
@@ -202,7 +202,7 @@ func (b *backend) operationReserveUpdate(ctx context.Context, req *logical.Reque
 			}
 			// If we reach here, the error is nil. That means there's an existing CheckOut for this
 			// service account.
-			alreadyManagedErr = multierror.Append(alreadyManagedErr, fmt.Errorf("%s is already managed by another reserve, please remove it and try again", newServiceAccountName))
+			alreadyManagedErr = multierror.Append(alreadyManagedErr, fmt.Errorf("%s is already managed by another set, please remove it and try again", newServiceAccountName))
 		}
 		if alreadyManagedErr != nil {
 			return logical.ErrorResponse(alreadyManagedErr.Error()), nil
@@ -218,106 +218,109 @@ func (b *backend) operationReserveUpdate(ctx context.Context, req *logical.Reque
 
 		// For service accounts we won't be handling anymore, we need to remove their passwords and delete them
 		// from storage.
-		beingDeleted := strutil.Difference(reserve.ServiceAccountNames, newServiceAccountNames, true)
+		beingDeleted := strutil.Difference(set.ServiceAccountNames, newServiceAccountNames, true)
 		var deletionErrs error
 		for _, prevServiceAccountName := range beingDeleted {
-			if err := b.deleteReserveServiceAccount(ctx, req.Storage, prevServiceAccountName); err != nil {
+			if err := b.deleteSetServiceAccount(ctx, req.Storage, prevServiceAccountName); err != nil {
 				deletionErrs = multierror.Append(deletionErrs, err)
 			}
 		}
 		if deletionErrs != nil {
 			return nil, deletionErrs
 		}
-		reserve.ServiceAccountNames = newServiceAccountNames
+		set.ServiceAccountNames = newServiceAccountNames
 	}
 	if ttlSent {
-		reserve.TTL = ttl
+		set.TTL = ttl
+	}
+	if ttlSent {
+		set.TTL = ttl
 	}
 	if maxTTLSent {
-		reserve.MaxTTL = maxTTL
+		set.MaxTTL = maxTTL
 	}
 	if enforcementSent {
-		reserve.DisableCheckInEnforcement = disableCheckInEnforcement
+		set.DisableCheckInEnforcement = disableCheckInEnforcement
 	}
-	if err := storeReserve(ctx, req.Storage, reserveName, reserve); err != nil {
+	if err := storeSet(ctx, req.Storage, setName, set); err != nil {
 		return nil, err
 	}
 	return nil, nil
 }
 
 func (b *backend) operationReserveRead(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
-	reserveName := fieldData.Get("name").(string)
-	reserve, err := readReserve(ctx, req.Storage, reserveName)
+	setName := fieldData.Get("name").(string)
+	set, err := readSet(ctx, req.Storage, setName)
 	if err != nil {
 		return nil, err
 	}
-	if reserve == nil {
+	if set == nil {
 		return nil, nil
 	}
 	return &logical.Response{
 		Data: map[string]interface{}{
-			"service_account_names":        reserve.ServiceAccountNames,
-			"ttl":                          int64(reserve.TTL.Seconds()),
-			"max_ttl":                      int64(reserve.MaxTTL.Seconds()),
-			"disable_check_in_enforcement": reserve.DisableCheckInEnforcement,
+			"service_account_names":        set.ServiceAccountNames,
+			"ttl":                          int64(set.TTL.Seconds()),
+			"max_ttl":                      int64(set.MaxTTL.Seconds()),
+			"disable_check_in_enforcement": set.DisableCheckInEnforcement,
 		},
 	}, nil
 }
 
 func (b *backend) operationReserveDelete(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
-	reserveName := fieldData.Get("name").(string)
-	reserve, err := readReserve(ctx, req.Storage, reserveName)
+	setName := fieldData.Get("name").(string)
+	set, err := readSet(ctx, req.Storage, setName)
 	if err != nil {
 		return nil, err
 	}
-	if reserve == nil {
+	if set == nil {
 		return nil, nil
 	}
 	// We need to remove all the items we'd stored for these service accounts.
 	var deletionErrs error
-	for _, serviceAccountName := range reserve.ServiceAccountNames {
-		if err := b.deleteReserveServiceAccount(ctx, req.Storage, serviceAccountName); err != nil {
+	for _, serviceAccountName := range set.ServiceAccountNames {
+		if err := b.deleteSetServiceAccount(ctx, req.Storage, serviceAccountName); err != nil {
 			deletionErrs = multierror.Append(deletionErrs, err)
 		}
 	}
 	if deletionErrs != nil {
 		return nil, deletionErrs
 	}
-	if err := req.Storage.Delete(ctx, libraryPrefix+reserveName); err != nil {
+	if err := req.Storage.Delete(ctx, libraryPrefix+setName); err != nil {
 		return nil, err
 	}
 	return nil, nil
 }
 
-// readReserve is a helper method for reading a reserve from storage by name.
+// readSet is a helper method for reading a set from storage by name.
 // It's intended to be used anywhere in the plugin. It may return nil, nil if
-// a libraryReserve doesn't currently exist for a given reserveName.
-func readReserve(ctx context.Context, storage logical.Storage, reserveName string) (*libraryReserve, error) {
-	entry, err := storage.Get(ctx, libraryPrefix+reserveName)
+// a librarySet doesn't currently exist for a given setName.
+func readSet(ctx context.Context, storage logical.Storage, setName string) (*librarySet, error) {
+	entry, err := storage.Get(ctx, libraryPrefix+setName)
 	if err != nil {
 		return nil, err
 	}
 	if entry == nil {
 		return nil, nil
 	}
-	reserve := &libraryReserve{}
-	if err := entry.DecodeJSON(reserve); err != nil {
+	set := &librarySet{}
+	if err := entry.DecodeJSON(set); err != nil {
 		return nil, err
 	}
-	return reserve, nil
+	return set, nil
 }
 
-// storeReserve stores a library reserve.
-func storeReserve(ctx context.Context, storage logical.Storage, reserveName string, reserve *libraryReserve) error {
-	entry, err := logical.StorageEntryJSON(libraryPrefix+reserveName, reserve)
+// storeSet stores a librarySet.
+func storeSet(ctx context.Context, storage logical.Storage, setName string, set *librarySet) error {
+	entry, err := logical.StorageEntryJSON(libraryPrefix+setName, set)
 	if err != nil {
 		return err
 	}
 	return storage.Put(ctx, entry)
 }
 
-// deleteReserveServiceAccount errors if an account can't presently be deleted, or deletes it.
-func (b *backend) deleteReserveServiceAccount(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
+// deleteSetServiceAccount errors if an account can't presently be deleted, or deletes it.
+func (b *backend) deleteSetServiceAccount(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
 	checkOut, err := b.checkOutHandler.Status(ctx, storage, serviceAccountName)
 	if err != nil {
 		return err
@@ -336,19 +339,19 @@ func (b *backend) deleteReserveServiceAccount(ctx context.Context, storage logic
 }
 
 const (
-	reserveHelpSynopsis = `
-Manage reserves to build a library of service accounts that can be checked out.
+	setHelpSynopsis = `
+Manage sets to build a library of service accounts that can be checked out.
 `
-	reserveHelpDescription = `
-This endpoint allows you to read, write, and delete individual reserves that are used for checking out service accounts.
+	setHelpDescription = `
+This endpoint allows you to read, write, and delete individual sets that are used for checking out service accounts.
 
-Deleting a reserve can only be performed if all of its service accounts are currently checked in.
+Deleting a set can only be performed if all of its service accounts are currently checked in.
 `
-	pathListReservesHelpSyn = `
-List the name of each reserve currently stored.
+	pathListSetsHelpSyn = `
+List the name of each set currently stored.
 `
-	pathListReservesHelpDesc = `
-To learn which service accounts are being managed by Vault, list the reserve names using
-this endpoint. Then read any individual reserve by name to learn more.
+	pathListSetsHelpDesc = `
+To learn which service accounts are being managed by Vault, list the set names using
+this endpoint. Then read any individual set by name to learn more.
 `
 )

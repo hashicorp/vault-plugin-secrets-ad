@@ -15,14 +15,14 @@ func (b *backend) pathReserveStatus() *framework.Path {
 		Fields: map[string]*framework.FieldSchema{
 			"name": {
 				Type:        framework.TypeLowerCaseString,
-				Description: "Name of the reserve",
+				Description: "Name of the set.",
 				Required:    true,
 			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.operationReserveStatus,
-				Summary:  "Check the status of the service accounts in a library reserve.",
+				Summary:  "Check the status of the service accounts in a library set.",
 			},
 		},
 		HelpSynopsis: `Check the status of the service accounts in a library.`,
@@ -30,16 +30,16 @@ func (b *backend) pathReserveStatus() *framework.Path {
 }
 
 func (b *backend) operationReserveStatus(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
-	reserveName := fieldData.Get("name").(string)
-	reserve, err := readReserve(ctx, req.Storage, reserveName)
+	setName := fieldData.Get("name").(string)
+	set, err := readSet(ctx, req.Storage, setName)
 	if err != nil {
 		return nil, err
 	}
-	if reserve == nil {
-		return logical.ErrorResponse(`"%s" doesn't exist`, reserveName), nil
+	if set == nil {
+		return logical.ErrorResponse(`"%s" doesn't exist`, setName), nil
 	}
 	respData := make(map[string]interface{})
-	for _, serviceAccountName := range reserve.ServiceAccountNames {
+	for _, serviceAccountName := range set.ServiceAccountNames {
 		checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName)
 		if err != nil {
 			return nil, err
