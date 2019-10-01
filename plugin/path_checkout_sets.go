@@ -233,9 +233,6 @@ func (b *backend) operationReserveUpdate(ctx context.Context, req *logical.Reque
 	if ttlSent {
 		set.TTL = ttl
 	}
-	if ttlSent {
-		set.TTL = ttl
-	}
 	if maxTTLSent {
 		set.MaxTTL = maxTTL
 	}
