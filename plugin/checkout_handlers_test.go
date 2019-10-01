@@ -172,6 +172,10 @@ func (f *fakeCheckOutHandler) CheckOut(ctx context.Context, storage logical.Stor
 	return nil
 }
 
+func (f *fakeCheckOutHandler) Renew(ctx context.Context, storage logical.Storage, serviceAccountName string, updatedCheckOut *CheckOut) error {
+	return nil
+}
+
 func (f *fakeCheckOutHandler) CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
 	return nil
 }

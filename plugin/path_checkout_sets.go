@@ -21,6 +21,20 @@ type librarySet struct {
 	DisableCheckInEnforcement bool          `json:"disable_check_in_enforcement"`
 }
 
+// Validates ensures that a set meets our code assumptions that TTLs are set in
+// a way that makes sense, and that there's at least one service account.
+func (l *librarySet) Validate() error {
+	if len(l.ServiceAccountNames) < 1 {
+		return fmt.Errorf(`at least one service account must be configured`)
+	}
+	if l.MaxTTL > 0 {
+		if l.MaxTTL < l.TTL {
+			return fmt.Errorf(`max_ttl (%d seconds) may not be less than ttl (%d seconds)`, l.MaxTTL, l.TTL)
+		}
+	}
+	return nil
+}
+
 func (b *backend) pathListReserves() *framework.Path {
 	return &framework.Path{
 		Pattern: libraryPrefix + "?$",
@@ -146,6 +160,9 @@ func (b *backend) operationReserveCreate(ctx context.Context, req *logical.Reque
 		MaxTTL:                    maxTTL,
 		DisableCheckInEnforcement: disableCheckInEnforcement,
 	}
+	if err := set.Validate(); err != nil {
+		return logical.ErrorResponse(err.Error()), nil
+	}
 	if err := storeSet(ctx, req.Storage, setName, set); err != nil {
 		return nil, err
 	}
@@ -239,6 +256,9 @@ func (b *backend) operationReserveUpdate(ctx context.Context, req *logical.Reque
 	if enforcementSent {
 		set.DisableCheckInEnforcement = disableCheckInEnforcement
 	}
+	if err := set.Validate(); err != nil {
+		return logical.ErrorResponse(err.Error()), nil
+	}
 	if err := storeSet(ctx, req.Storage, setName, set); err != nil {
 		return nil, err
 	}
@@ -320,11 +340,11 @@ func storeSet(ctx context.Context, storage logical.Storage, setName string, set 
 func (b *backend) deleteSetServiceAccount(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
 	checkOut, err := b.checkOutHandler.Status(ctx, storage, serviceAccountName)
 	if err != nil {
+		if err == ErrNotFound {
+			// Nothing else to do here.
+			return nil
+		}
 		return err
-	}
-	if checkOut == nil {
-		// Nothing further to do here.
-		return nil
 	}
 	if !checkOut.IsAvailable {
 		return fmt.Errorf(`"%s" can't be deleted because it is currently checked out'`, serviceAccountName)

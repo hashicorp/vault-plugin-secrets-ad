@@ -41,7 +41,10 @@ func newBackend(client secretsClient) *backend {
 			adBackend.pathRotateCredentials(),
 
 			// The following paths are for AD credential checkout.
-			adBackend.pathReserveStatus(),
+			adBackend.pathSetCheckIn(),
+			adBackend.pathSetManageCheckIn(),
+			adBackend.pathSetCheckOut(),
+			adBackend.pathSetStatus(),
 			adBackend.pathReserves(),
 			adBackend.pathListReserves(),
 		},
@@ -53,12 +56,15 @@ func newBackend(client secretsClient) *backend {
 		},
 		Invalidate:  adBackend.Invalidate,
 		BackendType: logical.TypeLogical,
+		Secrets: []*framework.Secret{
+			adBackend.secretAccessKeys(),
+		},
 	}
 	return adBackend
 }
 
 type backend struct {
-	logical.Backend
+	*framework.Backend
 
 	client secretsClient
 

@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"testing"
+	"time"
 
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -27,6 +28,16 @@ func TestCheckOuts(t *testing.T) {
 	t.Run("write set", WriteReserve)
 	t.Run("add service account", AddAnotherServiceAccount)
 	t.Run("remove service account", RemoveServiceAccount)
+
+	t.Run("check initial status", CheckInitialStatus)
+	t.Run("check out account", PerformCheckOut)
+	t.Run("check updated status", CheckUpdatedStatus)
+	t.Run("normal check in", NormalCheckIn)
+	t.Run("return to initial status", CheckInitialStatus)
+	t.Run("check out again", PerformCheckOut)
+	t.Run("check updated status", CheckUpdatedStatus)
+	t.Run("force check in", ForceCheckIn)
+	t.Run("check all are available", CheckInitialStatus)
 }
 
 func WriteReserve(t *testing.T) {
@@ -234,5 +245,129 @@ func DeleteReserve(t *testing.T) {
 	}
 	if resp != nil {
 		t.Fatalf("expected an empty response, got: %v", resp)
+	}
+}
+
+func CheckInitialStatus(t *testing.T) {
+	req := &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      libraryPrefix + "test-set/status",
+		Storage:   testStorage,
+	}
+	resp, err := testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	if resp == nil {
+		t.Fatal("expected a response")
+	}
+	tester1CheckOut := resp.Data["tester1@example.com"].(map[string]interface{})
+	available := tester1CheckOut["available"].(bool)
+	if !available {
+		t.Fatal("tester1 should be available")
+	}
+
+	tester2CheckOut := resp.Data["tester1@example.com"].(map[string]interface{})
+	available = tester2CheckOut["available"].(bool)
+	if !available {
+		t.Fatal("tester2 should be available")
+	}
+}
+
+func PerformCheckOut(t *testing.T) {
+	req := &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      libraryPrefix + "test-set/check-out",
+		Storage:   testStorage,
+	}
+	resp, err := testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	if resp == nil {
+		t.Fatal("expected a response")
+	}
+	if resp.Data["service_account_name"].(string) == "" {
+		t.Fatal("service account name should be populated")
+	}
+	if resp.Data["password"].(string) == "" {
+		t.Fatal("password should be populated")
+	}
+	if !resp.Secret.Renewable {
+		t.Fatal("lease should be renewable")
+	}
+	if resp.Secret.TTL != time.Hour*10 {
+		t.Fatal("expected 10h TTL")
+	}
+	if resp.Secret.MaxTTL != time.Hour*11 {
+		t.Fatal("expected 11h TTL")
+	}
+	if resp.Secret.InternalData["service_account_name"].(string) == "" {
+		t.Fatal("internal service account name should not be empty")
+	}
+	if resp.Secret.InternalData["set_name"] != "test-set" {
+		t.Fatal("expected set name of test-set")
+	}
+}
+
+func CheckUpdatedStatus(t *testing.T) {
+	req := &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      libraryPrefix + "test-set/status",
+		Storage:   testStorage,
+	}
+	resp, err := testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	if resp == nil {
+		t.Fatal("expected a response")
+	}
+	tester1CheckOut := resp.Data["tester1@example.com"].(map[string]interface{})
+	tester1Available := tester1CheckOut["available"].(bool)
+
+	tester2CheckOut := resp.Data["tester2@example.com"].(map[string]interface{})
+	tester2Available := tester2CheckOut["available"].(bool)
+
+	if tester1Available && tester2Available {
+		t.Fatal("one of the testers should not be available")
+	}
+}
+
+func NormalCheckIn(t *testing.T) {
+	req := &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      libraryPrefix + "test-set/check-in",
+		Storage:   testStorage,
+	}
+	resp, err := testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	if resp == nil {
+		t.Fatal("expected a response")
+	}
+	checkIns := resp.Data["check_ins"].([]string)
+	if len(checkIns) != 1 {
+		t.Fatal("expected 1 check-in")
+	}
+}
+
+func ForceCheckIn(t *testing.T) {
+	req := &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      libraryPrefix + "manage/test-set/check-in",
+		Storage:   testStorage,
+	}
+	resp, err := testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	if resp == nil {
+		t.Fatal("expected a response")
+	}
+	checkIns := resp.Data["check_ins"].([]string)
+	if len(checkIns) != 1 {
+		t.Fatal("expected 1 check-in")
 	}
 }
