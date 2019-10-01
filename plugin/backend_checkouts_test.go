@@ -36,7 +36,8 @@ func WriteReserve(t *testing.T) {
 		Storage:   testStorage,
 		Data: map[string]interface{}{
 			"service_account_names":        []string{"tester1@example.com", "tester2@example.com"},
-			"lending_period":               "10h",
+			"ttl":                          "10h",
+			"max_ttl":                      "11h",
 			"disable_check_in_enforcement": true,
 		},
 	}
@@ -106,6 +107,14 @@ func ReadReserve(t *testing.T) {
 	if !disableCheckInEnforcement {
 		t.Fatal("check-in enforcement should be disabled")
 	}
+	ttl := resp.Data["ttl"].(int64)
+	if ttl != 10*60*60 { // 10 hours
+		t.Fatal(ttl)
+	}
+	maxTTL := resp.Data["max_ttl"].(int64)
+	if maxTTL != 11*60*60 { // 11 hours
+		t.Fatal(maxTTL)
+	}
 }
 
 func WriteReserveToggleOff(t *testing.T) {
@@ -115,7 +124,7 @@ func WriteReserveToggleOff(t *testing.T) {
 		Storage:   testStorage,
 		Data: map[string]interface{}{
 			"service_account_names":        []string{"tester1@example.com", "tester2@example.com"},
-			"lending_period":               "10h",
+			"ttl":                          "10h",
 			"disable_check_in_enforcement": false,
 		},
 	}

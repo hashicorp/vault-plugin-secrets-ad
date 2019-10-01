@@ -17,7 +17,6 @@ func setup() (context.Context, logical.Storage, string, *CheckOut) {
 	checkOut := &CheckOut{
 		BorrowerEntityID:    "entity-id",
 		BorrowerClientToken: "client-token",
-		LendingPeriod:       10,
 		Due:                 time.Now().UTC(),
 	}
 	config := &configuration{

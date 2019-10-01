@@ -62,7 +62,6 @@ func (b *backend) operationReserveStatus(ctx context.Context, req *logical.Reque
 			respData[serviceAccountName] = status
 			continue
 		}
-		status["lending_period"] = int64(checkOut.LendingPeriod.Seconds())
 		status["due"] = checkOut.Due.Format(time.RFC3339Nano)
 		if checkOut.BorrowerClientToken != "" {
 			status["borrower_client_token"] = checkOut.BorrowerClientToken
