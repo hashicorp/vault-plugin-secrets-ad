@@ -218,7 +218,7 @@ func ListReserves(t *testing.T) {
 		t.Fatalf("expected 1 key but received %s", listedKeys)
 	}
 	if "test-set" != listedKeys[0] {
-		t.Fatal("expected test-check-out set to be the only listed item")
+		t.Fatal("expected test-set to be the only listed item")
 	}
 }
 
