@@ -16,7 +16,8 @@ const libraryPrefix = "library/"
 
 type libraryReserve struct {
 	ServiceAccountNames       []string      `json:"service_account_names"`
-	LendingPeriod             time.Duration `json:"lending_period"`
+	TTL                       time.Duration `json:"ttl"`
+	MaxTTL                    time.Duration `json:"max_ttl"`
 	DisableCheckInEnforcement bool          `json:"disable_check_in_enforcement"`
 }
 
@@ -54,9 +55,14 @@ func (b *backend) pathReserves() *framework.Path {
 				Type:        framework.TypeCommaStringSlice,
 				Description: "The username/logon name for the service accounts with which this reserve will be associated.",
 			},
-			"lending_period": {
+			"ttl": {
 				Type:        framework.TypeDurationSecond,
-				Description: "In seconds, the default length of time before check-outs will expire.",
+				Description: "In seconds, the amount of time a check-out should last. Defaults to 24 hours.",
+				Default:     24 * 60 * 60, // 24 hours
+			},
+			"max_ttl": {
+				Type:        framework.TypeDurationSecond,
+				Description: "In seconds, the max amount of time a check-out's renewals should last. Defaults to 24 hours.",
 				Default:     24 * 60 * 60, // 24 hours
 			},
 			"disable_check_in_enforcement": {
@@ -100,7 +106,8 @@ func (b *backend) operationReserveExistenceCheck(ctx context.Context, req *logic
 func (b *backend) operationReserveCreate(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
 	reserveName := fieldData.Get("name").(string)
 	serviceAccountNames := fieldData.Get("service_account_names").([]string)
-	lendingPeriod := time.Duration(fieldData.Get("lending_period").(int)) * time.Second
+	ttl := time.Duration(fieldData.Get("ttl").(int)) * time.Second
+	maxTTL := time.Duration(fieldData.Get("max_ttl").(int)) * time.Second
 	disableCheckInEnforcement := fieldData.Get("disable_check_in_enforcement").(bool)
 
 	if len(serviceAccountNames) == 0 {
@@ -135,7 +142,8 @@ func (b *backend) operationReserveCreate(ctx context.Context, req *logical.Reque
 
 	reserve := &libraryReserve{
 		ServiceAccountNames:       serviceAccountNames,
-		LendingPeriod:             lendingPeriod,
+		TTL:                       ttl,
+		MaxTTL:                    maxTTL,
 		DisableCheckInEnforcement: disableCheckInEnforcement,
 	}
 	if err := storeReserve(ctx, req.Storage, reserveName, reserve); err != nil {
@@ -153,11 +161,17 @@ func (b *backend) operationReserveUpdate(ctx context.Context, req *logical.Reque
 		newServiceAccountNames = newServiceAccountNamesRaw.([]string)
 	}
 
-	lendingPeriodRaw, lendingPeriodSent := fieldData.GetOk("lending_period")
-	if !lendingPeriodSent {
-		lendingPeriodRaw = fieldData.Schema["lending_period"].Default
+	ttlRaw, ttlSent := fieldData.GetOk("ttl")
+	if !ttlSent {
+		ttlRaw = fieldData.Schema["ttl"].Default
 	}
-	lendingPeriod := time.Duration(lendingPeriodRaw.(int)) * time.Second
+	ttl := time.Duration(ttlRaw.(int)) * time.Second
+
+	maxTTLRaw, maxTTLSent := fieldData.GetOk("max_ttl")
+	if !maxTTLSent {
+		maxTTLRaw = fieldData.Schema["max_ttl"].Default
+	}
+	maxTTL := time.Duration(maxTTLRaw.(int)) * time.Second
 
 	disableCheckInEnforcementRaw, enforcementSent := fieldData.GetOk("disable_check_in_enforcement")
 	if !enforcementSent {
@@ -216,8 +230,11 @@ func (b *backend) operationReserveUpdate(ctx context.Context, req *logical.Reque
 		}
 		reserve.ServiceAccountNames = newServiceAccountNames
 	}
-	if lendingPeriodSent {
-		reserve.LendingPeriod = lendingPeriod
+	if ttlSent {
+		reserve.TTL = ttl
+	}
+	if maxTTLSent {
+		reserve.MaxTTL = maxTTL
 	}
 	if enforcementSent {
 		reserve.DisableCheckInEnforcement = disableCheckInEnforcement
@@ -240,7 +257,8 @@ func (b *backend) operationReserveRead(ctx context.Context, req *logical.Request
 	return &logical.Response{
 		Data: map[string]interface{}{
 			"service_account_names":        reserve.ServiceAccountNames,
-			"lending_period":               int64(reserve.LendingPeriod.Seconds()),
+			"ttl":                          int64(reserve.TTL.Seconds()),
+			"max_ttl":                      int64(reserve.MaxTTL.Seconds()),
 			"disable_check_in_enforcement": reserve.DisableCheckInEnforcement,
 		},
 	}, nil

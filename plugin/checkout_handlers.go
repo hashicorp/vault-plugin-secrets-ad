@@ -23,11 +23,10 @@ var (
 // CheckOut provides information for a service account that is currently
 // checked out.
 type CheckOut struct {
-	IsAvailable         bool          `json:"is_available"`
-	BorrowerEntityID    string        `json:"borrower_entity_id"`
-	BorrowerClientToken string        `json:"borrower_client_token"`
-	LendingPeriod       time.Duration `json:"lending_period"`
-	Due                 time.Time     `json:"due"`
+	IsAvailable         bool      `json:"is_available"`
+	BorrowerEntityID    string    `json:"borrower_entity_id"`
+	BorrowerClientToken string    `json:"borrower_client_token"`
+	Due                 time.Time `json:"due"`
 }
 
 // CheckOutHandler is an interface used to break down tasks involved in managing checkouts. These tasks
@@ -40,7 +39,7 @@ type CheckOutHandler interface {
 	CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error
 
 	// CheckIn attempts to check in a service account. If an error occurs, the account remains checked out
-	// and can either be retried by the caller, or eventually may be checked in if it has a lending period
+	// and can either be retried by the caller, or eventually may be checked in if it has a ttl
 	// that ends.
 	CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error
 
@@ -69,7 +68,7 @@ func (h *PasswordHandler) CheckOut(ctx context.Context, storage logical.Storage,
 // 		- An error will be returned.
 //		- The account will remain checked out.
 //		- The client may (or may not) retry the check-in.
-// 		- The overdue watcher will still check it in if its lending period runs out.
+// 		- The overdue watcher will still check it in if its ttl runs out.
 func (h *PasswordHandler) CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
 	if err := validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
 		return err
