@@ -24,7 +24,7 @@ func (b *backend) pathSetCheckOut() *framework.Path {
 			},
 			"ttl": {
 				Type:        framework.TypeDurationSecond,
-				Description: "In seconds, the length of time before the check-out will expire.",
+				Description: "The length of time before the check-out will expire, in seconds.",
 			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
