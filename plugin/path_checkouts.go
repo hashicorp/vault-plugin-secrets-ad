@@ -86,17 +86,8 @@ func (b *backend) operationSetCheckOut(ctx context.Context, req *logical.Request
 			ttl = requestedTTL
 		}
 	}
-	due := time.Now().UTC().Add(ttl)
-	if ttl <= 0 {
-		// An unlimited lending period is allowed. For simplicity, set
-		// the due date to be 100 years in the future.
-		// The due date is mainly for use during "status" calls so it's
-		// easy to understand who has checked something out and for how long.
-		due = time.Now().UTC().Add(time.Hour * 24 * 365 * 100)
-	}
 	checkOut := &CheckOut{
 		IsAvailable:         false,
-		Due:                 due,
 		BorrowerEntityID:    req.EntityID,
 		BorrowerClientToken: req.ClientToken,
 	}
@@ -163,8 +154,6 @@ func (b *backend) renewCheckOut(ctx context.Context, req *logical.Request, field
 	if set == nil {
 		return logical.ErrorResponse(`"%s" doesn't exist`, setName), nil
 	}
-	// The new time due will be consistent with when the secret ttl ends.
-	checkOut.Due = time.Now().UTC().Add(req.Secret.TTL)
 
 	// Try to renew it for however long the checkout was originally set to last, unless the set lending period
 	// has been shortened.
@@ -368,7 +357,6 @@ func (b *backend) operationSetStatus(ctx context.Context, req *logical.Request, 
 			respData[serviceAccountName] = status
 			continue
 		}
-		status["due"] = checkOut.Due.Format(time.RFC3339Nano)
 		if checkOut.BorrowerClientToken != "" {
 			status["borrower_client_token"] = checkOut.BorrowerClientToken
 		}

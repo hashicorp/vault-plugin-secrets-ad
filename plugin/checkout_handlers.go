@@ -3,8 +3,6 @@ package plugin
 import (
 	"context"
 	"errors"
-	"time"
-
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -27,10 +25,9 @@ var (
 // CheckOut provides information for a service account that is currently
 // checked out.
 type CheckOut struct {
-	IsAvailable         bool      `json:"is_available"`
-	BorrowerEntityID    string    `json:"borrower_entity_id"`
-	BorrowerClientToken string    `json:"borrower_client_token"`
-	Due                 time.Time `json:"due"`
+	IsAvailable         bool   `json:"is_available"`
+	BorrowerEntityID    string `json:"borrower_entity_id"`
+	BorrowerClientToken string `json:"borrower_client_token"`
 }
 
 // TODO this object model needs to be flattened and moved to its own package if some methods need to remain private

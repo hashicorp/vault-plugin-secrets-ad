@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -17,7 +16,6 @@ func setup() (context.Context, logical.Storage, string, *CheckOut) {
 	checkOut := &CheckOut{
 		BorrowerEntityID:    "entity-id",
 		BorrowerClientToken: "client-token",
-		Due:                 time.Now().UTC(),
 	}
 	config := &configuration{
 		PasswordConf: &passwordConf{
