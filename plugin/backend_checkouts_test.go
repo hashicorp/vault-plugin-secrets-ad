@@ -13,18 +13,18 @@ func TestCheckOuts(t *testing.T) {
 	// Plant a config.
 	t.Run("plant config", PlantConfig)
 
-	// Exercise all reserve endpoints.
-	t.Run("write reserve", WriteReserve)
-	t.Run("read reserve", ReadReserve)
-	t.Run("read reserve status", ReadReserveStatus)
-	t.Run("write reserve toggle off", WriteReserveToggleOff)
-	t.Run("read reserve toggle off", ReadReserveToggleOff)
-	t.Run("write conflicting reserve", WriteReserveWithConflictingServiceAccounts)
-	t.Run("list reserves", ListReserves)
-	t.Run("delete reserve", DeleteReserve)
+	// Exercise all set endpoints.
+	t.Run("write set", WriteReserve)
+	t.Run("read set", ReadReserve)
+	t.Run("read set status", ReadReserveStatus)
+	t.Run("write set toggle off", WriteReserveToggleOff)
+	t.Run("read set toggle off", ReadReserveToggleOff)
+	t.Run("write conflicting set", WriteReserveWithConflictingServiceAccounts)
+	t.Run("list sets", ListReserves)
+	t.Run("delete set", DeleteReserve)
 
-	// Do some common updates on reserves and ensure they work.
-	t.Run("write reserve", WriteReserve)
+	// Do some common updates on sets and ensure they work.
+	t.Run("write set", WriteReserve)
 	t.Run("add service account", AddAnotherServiceAccount)
 	t.Run("remove service account", RemoveServiceAccount)
 }
@@ -32,7 +32,7 @@ func TestCheckOuts(t *testing.T) {
 func WriteReserve(t *testing.T) {
 	req := &logical.Request{
 		Operation: logical.CreateOperation,
-		Path:      libraryPrefix + "test-reserve",
+		Path:      libraryPrefix + "test-set",
 		Storage:   testStorage,
 		Data: map[string]interface{}{
 			"service_account_names":        []string{"tester1@example.com", "tester2@example.com"},
@@ -53,7 +53,7 @@ func WriteReserve(t *testing.T) {
 func AddAnotherServiceAccount(t *testing.T) {
 	req := &logical.Request{
 		Operation: logical.UpdateOperation,
-		Path:      libraryPrefix + "test-reserve",
+		Path:      libraryPrefix + "test-set",
 		Storage:   testStorage,
 		Data: map[string]interface{}{
 			"service_account_names": []string{"tester1@example.com", "tester2@example.com", "tester3@example.com"},
@@ -71,7 +71,7 @@ func AddAnotherServiceAccount(t *testing.T) {
 func RemoveServiceAccount(t *testing.T) {
 	req := &logical.Request{
 		Operation: logical.UpdateOperation,
-		Path:      libraryPrefix + "test-reserve",
+		Path:      libraryPrefix + "test-set",
 		Storage:   testStorage,
 		Data: map[string]interface{}{
 			"service_account_names": []string{"tester1@example.com", "tester2@example.com"},
@@ -89,7 +89,7 @@ func RemoveServiceAccount(t *testing.T) {
 func ReadReserve(t *testing.T) {
 	req := &logical.Request{
 		Operation: logical.ReadOperation,
-		Path:      libraryPrefix + "test-reserve",
+		Path:      libraryPrefix + "test-set",
 		Storage:   testStorage,
 	}
 	resp, err := testBackend.HandleRequest(ctx, req)
@@ -120,7 +120,7 @@ func ReadReserve(t *testing.T) {
 func WriteReserveToggleOff(t *testing.T) {
 	req := &logical.Request{
 		Operation: logical.UpdateOperation,
-		Path:      libraryPrefix + "test-reserve",
+		Path:      libraryPrefix + "test-set",
 		Storage:   testStorage,
 		Data: map[string]interface{}{
 			"service_account_names":        []string{"tester1@example.com", "tester2@example.com"},
@@ -140,7 +140,7 @@ func WriteReserveToggleOff(t *testing.T) {
 func ReadReserveToggleOff(t *testing.T) {
 	req := &logical.Request{
 		Operation: logical.ReadOperation,
-		Path:      libraryPrefix + "test-reserve",
+		Path:      libraryPrefix + "test-set",
 		Storage:   testStorage,
 	}
 	resp, err := testBackend.HandleRequest(ctx, req)
@@ -163,7 +163,7 @@ func ReadReserveToggleOff(t *testing.T) {
 func ReadReserveStatus(t *testing.T) {
 	req := &logical.Request{
 		Operation: logical.ReadOperation,
-		Path:      libraryPrefix + "test-reserve/status",
+		Path:      libraryPrefix + "test-set/status",
 		Storage:   testStorage,
 	}
 	resp, err := testBackend.HandleRequest(ctx, req)
@@ -174,7 +174,7 @@ func ReadReserveStatus(t *testing.T) {
 		t.Fatal("expected a response")
 	}
 	if len(resp.Data) != 2 {
-		t.Fatal("length should be 2 because there are two service accounts in this reserve")
+		t.Fatal("length should be 2 because there are two service accounts in this set")
 	}
 	testerStatus := resp.Data["tester1@example.com"].(map[string]interface{})
 	if !testerStatus["available"].(bool) {
@@ -185,7 +185,7 @@ func ReadReserveStatus(t *testing.T) {
 func WriteReserveWithConflictingServiceAccounts(t *testing.T) {
 	req := &logical.Request{
 		Operation: logical.CreateOperation,
-		Path:      libraryPrefix + "test-reserve2",
+		Path:      libraryPrefix + "test-set2",
 		Storage:   testStorage,
 		Data: map[string]interface{}{
 			"service_account_names": "tester1@example.com",
@@ -196,7 +196,7 @@ func WriteReserveWithConflictingServiceAccounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	if resp == nil || !resp.IsError() {
-		t.Fatal("expected err response because we're adding a service account managed by another reserve")
+		t.Fatal("expected err response because we're adding a service account managed by another set")
 	}
 }
 
@@ -217,15 +217,15 @@ func ListReserves(t *testing.T) {
 	if len(listedKeys) != 1 {
 		t.Fatalf("expected 1 key but received %s", listedKeys)
 	}
-	if "test-reserve" != listedKeys[0] {
-		t.Fatal("expected test-reserve to be the only listed item")
+	if "test-set" != listedKeys[0] {
+		t.Fatal("expected test-set to be the only listed item")
 	}
 }
 
 func DeleteReserve(t *testing.T) {
 	req := &logical.Request{
 		Operation: logical.DeleteOperation,
-		Path:      libraryPrefix + "test-reserve",
+		Path:      libraryPrefix + "test-set",
 		Storage:   testStorage,
 	}
 	resp, err := testBackend.HandleRequest(ctx, req)
