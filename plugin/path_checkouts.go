@@ -300,7 +300,7 @@ func (b *backend) handleCheckIn(ctx context.Context, req *logical.Request, field
 				continue
 			}
 			if !canCheckIn(req, checkOut, disableCheckInEnforcement) {
-				cantCheckInErrs = multierror.Append(cantCheckInErrs, fmt.Errorf(`"%s" can't be checked in because it wasn't checked out by the caller, please remove it and try again`, serviceAccountName))
+				cantCheckInErrs = multierror.Append(cantCheckInErrs, fmt.Errorf(`"%s" can't be checked in because it wasn't checked out by the caller`, serviceAccountName))
 				continue
 			}
 			toCheckIn = append(toCheckIn, serviceAccountName)
