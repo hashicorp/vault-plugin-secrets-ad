@@ -260,6 +260,8 @@ func (b *backend) handleCheckIn(ctx context.Context, req *logical.Request, field
 	}
 
 	// Build and validate a list of service account names that we will be checking in.
+	var cantCheckInErrs error
+	var toCheckIn []string
 	if len(serviceAccountNames) == 0 {
 		// It's okay if the caller doesn't tell us which service accounts they
 		// want to check in as long as they only have one checked out.
@@ -275,9 +277,9 @@ func (b *backend) handleCheckIn(ctx context.Context, req *logical.Request, field
 			if !canCheckIn(req, checkOut, disableCheckInEnforcement) {
 				continue
 			}
-			serviceAccountNames = append(serviceAccountNames, setServiceAccount)
+			toCheckIn = append(toCheckIn, setServiceAccount)
 		}
-		switch len(serviceAccountNames) {
+		switch len(toCheckIn) {
 		case 0:
 			// Everything's already currently checked in, nothing else to do here.
 			return &logical.Response{
@@ -289,29 +291,32 @@ func (b *backend) handleCheckIn(ctx context.Context, req *logical.Request, field
 			return logical.ErrorResponse(`when multiple service accounts are checked out, the "service_account_names" to check in must be provided`), nil
 		}
 	} else {
-		var cantCheckInErrs error
 		for _, serviceAccountName := range serviceAccountNames {
 			checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName)
 			if err != nil {
 				return nil, err
 			}
-			if !checkOut.IsAvailable {
+			if checkOut.IsAvailable {
 				continue
 			}
 			if !canCheckIn(req, checkOut, disableCheckInEnforcement) {
 				cantCheckInErrs = multierror.Append(cantCheckInErrs, fmt.Errorf(`"%s" can't be checked in because it wasn't checked out by the caller, please remove it and try again`, serviceAccountName))
+				continue
 			}
-		}
-		if cantCheckInErrs != nil {
-			return logical.ErrorResponse(cantCheckInErrs.Error()), nil
+			toCheckIn = append(toCheckIn, serviceAccountName)
 		}
 	}
 
-	respData["check_ins"] = serviceAccountNames
-	for _, serviceAccountName := range serviceAccountNames {
+	respData["check_ins"] = toCheckIn
+	for _, serviceAccountName := range toCheckIn {
 		if err := b.checkOutHandler.CheckIn(ctx, req.Storage, serviceAccountName); err != nil {
 			return nil, err
 		}
+	}
+	if cantCheckInErrs != nil {
+		// Let's return a 400 so the caller doesn't assume everything is OK. Their requested
+		// work is only partially done.
+		return logical.ErrorResponse(cantCheckInErrs.Error()), nil
 	}
 	return &logical.Response{
 		Data: respData,

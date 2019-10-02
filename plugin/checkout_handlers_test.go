@@ -65,8 +65,8 @@ func Test_StorageHandler(t *testing.T) {
 	// get a CurrentlyCheckedOutErr.
 	if err := storageHandler.CheckOut(ctx, storage, serviceAccountName, testCheckOut); err == nil {
 		t.Fatal("expected err but received none")
-	} else if err != ErrCurrentlyCheckedOut {
-		t.Fatalf("expected ErrCurrentlyCheckedOut, but received %s", err)
+	} else if err != ErrCheckedOut {
+		t.Fatalf("expected ErrCheckedOut, but received %s", err)
 	}
 
 	// If we try to check something in, it should succeed.

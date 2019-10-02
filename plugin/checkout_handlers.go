@@ -12,13 +12,13 @@ import (
 const checkoutStoragePrefix = "checkout/"
 
 var (
-	// ErrCurrentlyCheckedOut is returned when a check-out request is received
+	// ErrCheckedOut is returned when a check-out request is received
 	// for a service account that's already checked out.
-	ErrCurrentlyCheckedOut = errors.New("currently checked out")
+	ErrCheckedOut = errors.New("checked out")
 
-	// ErrNotCurrentlyCheckedOut is returned when a renewal request is received
+	// ErrCheckedIn is returned when a renewal request is received
 	// for a service account that's not currently checked out.
-	ErrNotCurrentlyCheckedOut = errors.New("not currently checked out")
+	ErrCheckedIn = errors.New("checked in")
 
 	// ErrNotFound is used when a requested item doesn't exist.
 	ErrNotFound = errors.New("not found")
@@ -39,7 +39,7 @@ type CheckOut struct {
 // that help us build our confidence in the code.
 type CheckOutHandler interface {
 	// CheckOut attempts to check out a service account. If the account is unavailable, it returns
-	// ErrCurrentlyCheckedOut. If the service account isn't managed by this plugin, it returns
+	// ErrCheckedOut. If the service account isn't managed by this plugin, it returns
 	// ErrNotFound.
 	CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error
 
@@ -151,7 +151,7 @@ type StorageHandler struct{}
 
 // CheckOut will return:
 //  - Nil if it was successfully able to perform the requested check out.
-//  - ErrCurrentlyCheckedOut if the account was already checked out.
+//  - ErrCheckedOut if the account was already checked out.
 //  - ErrNotFound if the service account isn't currently managed by this engine.
 //  - Some other err if it was unable to complete successfully.
 func (h *StorageHandler) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
@@ -159,19 +159,21 @@ func (h *StorageHandler) CheckOut(ctx context.Context, storage logical.Storage, 
 		return err
 	}
 	// Check if the service account is currently checked out.
-	if entry, err := storage.Get(ctx, checkoutStoragePrefix+serviceAccountName); err != nil {
+	currentEntry, err := storage.Get(ctx, checkoutStoragePrefix+serviceAccountName)
+	if err != nil {
 		return err
-	} else if entry == nil {
-		return ErrNotFound
-	} else {
-		currentCheckOut := &CheckOut{}
-		if err := entry.DecodeJSON(currentCheckOut); err != nil {
-			return err
-		}
-		if !currentCheckOut.IsAvailable {
-			return ErrCurrentlyCheckedOut
-		}
 	}
+	if currentEntry == nil {
+		return ErrNotFound
+	}
+	currentCheckOut := &CheckOut{}
+	if err := currentEntry.DecodeJSON(currentCheckOut); err != nil {
+		return err
+	}
+	if !currentCheckOut.IsAvailable {
+		return ErrCheckedOut
+	}
+
 	// Since it's not, store the new check-out.
 	entry, err := logical.StorageEntryJSON(checkoutStoragePrefix+serviceAccountName, checkOut)
 	if err != nil {
@@ -193,7 +195,7 @@ func (h *StorageHandler) Renew(ctx context.Context, storage logical.Storage, ser
 		}
 		// We can't renew something unless it's currently checked out.
 		if currentCheckOut.IsAvailable {
-			return ErrNotCurrentlyCheckedOut
+			return ErrCheckedIn
 		}
 		// Store the updated check-out.
 		entry, err := logical.StorageEntryJSON(checkoutStoragePrefix+serviceAccountName, updatedCheckOut)
