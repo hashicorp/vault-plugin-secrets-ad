@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"github.com/hashicorp/vault/sdk/helper/locksutil"
 	"sync"
 	"time"
 
@@ -30,6 +31,7 @@ func newBackend(client secretsClient) *backend {
 			client: client,
 			child:  &StorageHandler{},
 		},
+		checkOutLocks: locksutil.CreateLocks(),
 	}
 	adBackend.Backend = &framework.Backend{
 		Help: backendHelp,
@@ -74,6 +76,9 @@ type backend struct {
 	rotateRootLock *int32
 
 	checkOutHandler CheckOutHandler
+	// checkOutLocks are used for avoiding races
+	// when working with service accounts through the check-out system.
+	checkOutLocks []*locksutil.LockEntry
 }
 
 func (b *backend) Invalidate(ctx context.Context, key string) {

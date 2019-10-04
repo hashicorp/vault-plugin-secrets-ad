@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"errors"
+
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -13,10 +14,6 @@ var (
 	// ErrCheckedOut is returned when a check-out request is received
 	// for a service account that's already checked out.
 	ErrCheckedOut = errors.New("checked out")
-
-	// ErrCheckedIn is returned when a renewal request is received
-	// for a service account that's not currently checked out.
-	ErrCheckedIn = errors.New("checked in")
 
 	// ErrNotFound is used when a requested item doesn't exist.
 	ErrNotFound = errors.New("not found")
@@ -39,9 +36,6 @@ type CheckOutHandler interface {
 	// ErrCheckedOut. If the service account isn't managed by this plugin, it returns
 	// ErrNotFound.
 	CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error
-
-	// Renew will renew a check-out for the given period from now.
-	Renew(ctx context.Context, storage logical.Storage, serviceAccountName string, updatedCheckOut *CheckOut) error
 
 	// CheckIn attempts to check in a service account. If an error occurs, the account remains checked out
 	// and can either be retried by the caller, or eventually may be checked in if it has a ttl
@@ -66,10 +60,6 @@ type PasswordHandler struct {
 // CheckOut requires no further action from the password handler other than passing along the request.
 func (h *PasswordHandler) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
 	return h.child.CheckOut(ctx, storage, serviceAccountName, checkOut)
-}
-
-func (h *PasswordHandler) Renew(ctx context.Context, storage logical.Storage, serviceAccountName string, updatedCheckOut *CheckOut) error {
-	return h.child.Renew(ctx, storage, serviceAccountName, updatedCheckOut)
 }
 
 // CheckIn rotates the service account's password remotely and stores it locally.
@@ -177,30 +167,6 @@ func (h *StorageHandler) CheckOut(ctx context.Context, storage logical.Storage, 
 		return err
 	}
 	return storage.Put(ctx, entry)
-}
-
-func (h *StorageHandler) Renew(ctx context.Context, storage logical.Storage, serviceAccountName string, updatedCheckOut *CheckOut) error {
-	// Check if the service account is currently checked out.
-	if entry, err := storage.Get(ctx, checkoutStoragePrefix+serviceAccountName); err != nil {
-		return err
-	} else if entry == nil {
-		return ErrNotFound
-	} else {
-		currentCheckOut := &CheckOut{}
-		if err := entry.DecodeJSON(currentCheckOut); err != nil {
-			return err
-		}
-		// We can't renew something unless it's currently checked out.
-		if currentCheckOut.IsAvailable {
-			return ErrCheckedIn
-		}
-		// Store the updated check-out.
-		entry, err := logical.StorageEntryJSON(checkoutStoragePrefix+serviceAccountName, updatedCheckOut)
-		if err != nil {
-			return err
-		}
-		return storage.Put(ctx, entry)
-	}
 }
 
 // CheckIn will return nil error if it was able to successfully check in an account.
