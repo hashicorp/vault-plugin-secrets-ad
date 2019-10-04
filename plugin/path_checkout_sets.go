@@ -263,8 +263,7 @@ func (b *backend) operationReserveRead(ctx context.Context, req *logical.Request
 	if set == nil {
 		return nil, nil
 	}
-
-	// We don't worry about grabbing read locks for service accounts here because we expect this
+	
 	// We don't worry about grabbing read locks for service accounts here because we expect this
 	// call to be rare and initiates by humans, and it's okay if it's not perfectly
 	// consistent since it's not performing any changes.

@@ -2,13 +2,13 @@ package plugin
 
 import (
 	"context"
-	"github.com/hashicorp/vault/sdk/helper/locksutil"
 	"sync"
 	"time"
 
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
 	"github.com/hashicorp/vault/sdk/framework"
+	"github.com/hashicorp/vault/sdk/helper/locksutil"
 	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/patrickmn/go-cache"
 )
