@@ -157,11 +157,11 @@ func TestCheckOutRaces(t *testing.T) {
 	close(start)
 
 	// Wait for them all to finish.
-	timer := time.NewTimer(10 * time.Second)
+	timer := time.NewTimer(15 * time.Second)
 	for i := 0; i < numParallel; i++ {
 		select {
 		case <-timer.C:
-			t.Fatal("test took more than 10 seconds, may be deadlocked")
+			t.Fatal("test took more than 15 seconds, may be deadlocked")
 		case <-end:
 			continue
 		}
