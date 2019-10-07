@@ -96,7 +96,7 @@ func (b *backend) operationSetCheckOut(ctx context.Context, req *logical.Request
 
 	// If we arrived here, it's because we never had a hit for a service account that was available.
 	resp, err := logical.RespondWithStatusCode(&logical.Response{
-		Warnings: []string{"No service accounts available for check-out, please try again later."},
+		Warnings: []string{"No service accounts available for check-out."},
 	}, req, 429)
 	if err != nil {
 		return nil, err
