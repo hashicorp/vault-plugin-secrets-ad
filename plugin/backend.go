@@ -77,7 +77,7 @@ type backend struct {
 
 	checkOutHandler CheckOutHandler
 	// checkOutLocks are used for avoiding races
-	// when working with service accounts through the check-out system.
+	// when working with sets through the check-out system.
 	checkOutLocks []*locksutil.LockEntry
 }
 

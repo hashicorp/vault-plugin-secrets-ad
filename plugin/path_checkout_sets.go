@@ -119,6 +119,11 @@ func (b *backend) operationSetExistenceCheck(ctx context.Context, req *logical.R
 
 func (b *backend) operationSetCreate(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
 	setName := fieldData.Get("name").(string)
+
+	lock := locksutil.LockForKey(b.checkOutLocks, setName)
+	lock.Lock()
+	defer lock.Unlock()
+
 	serviceAccountNames := fieldData.Get("service_account_names").([]string)
 	ttl := time.Duration(fieldData.Get("ttl").(int)) * time.Second
 	maxTTL := time.Duration(fieldData.Get("max_ttl").(int)) * time.Second
@@ -163,6 +168,10 @@ func (b *backend) operationSetCreate(ctx context.Context, req *logical.Request, 
 
 func (b *backend) operationSetUpdate(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
 	setName := fieldData.Get("name").(string)
+
+	lock := locksutil.LockForKey(b.checkOutLocks, setName)
+	lock.Lock()
+	defer lock.Unlock()
 
 	newServiceAccountNamesRaw, newServiceAccountNamesSent := fieldData.GetOk("service_account_names")
 	var newServiceAccountNames []string
@@ -256,6 +265,11 @@ func (b *backend) operationSetUpdate(ctx context.Context, req *logical.Request, 
 
 func (b *backend) operationSetRead(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
 	setName := fieldData.Get("name").(string)
+
+	lock := locksutil.LockForKey(b.checkOutLocks, setName)
+	lock.RLock()
+	defer lock.RUnlock()
+
 	set, err := readSet(ctx, req.Storage, setName)
 	if err != nil {
 		return nil, err
@@ -275,6 +289,11 @@ func (b *backend) operationSetRead(ctx context.Context, req *logical.Request, fi
 
 func (b *backend) operationSetDelete(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
 	setName := fieldData.Get("name").(string)
+
+	lock := locksutil.LockForKey(b.checkOutLocks, setName)
+	lock.Lock()
+	defer lock.Unlock()
+
 	set, err := readSet(ctx, req.Storage, setName)
 	if err != nil {
 		return nil, err
@@ -331,10 +350,6 @@ func storeSet(ctx context.Context, storage logical.Storage, setName string, set 
 }
 
 func (b *backend) checkInNewServiceAccount(ctx context.Context, storage logical.Storage, serviceAccountName string) (isUserErr bool, err error) {
-	lock := locksutil.LockForKey(b.checkOutLocks, serviceAccountName)
-	lock.Lock()
-	defer lock.Unlock()
-
 	_, err = b.checkOutHandler.Status(ctx, storage, serviceAccountName)
 	if err == nil {
 		// We actually want to receive ErrNotFound here because that would indicate
@@ -358,10 +373,6 @@ func (b *backend) checkInNewServiceAccount(ctx context.Context, storage logical.
 
 // deleteSetServiceAccount errors if an account can't presently be deleted, or deletes it.
 func (b *backend) deleteSetServiceAccount(ctx context.Context, storage logical.Storage, serviceAccountName string) (isUserErr bool, err error) {
-	lock := locksutil.LockForKey(b.checkOutLocks, serviceAccountName)
-	lock.Lock()
-	defer lock.Unlock()
-
 	checkOut, err := b.checkOutHandler.Status(ctx, storage, serviceAccountName)
 	if err != nil {
 		if err == ErrNotFound {

@@ -40,6 +40,10 @@ func (b *backend) pathSetCheckOut() *framework.Path {
 func (b *backend) operationSetCheckOut(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
 	setName := fieldData.Get("name").(string)
 
+	lock := locksutil.LockForKey(b.checkOutLocks, setName)
+	lock.Lock()
+	defer lock.Unlock()
+
 	ttlPeriodRaw, ttlPeriodSent := fieldData.GetOk("ttl")
 	if !ttlPeriodSent {
 		ttlPeriodRaw = 0
@@ -87,6 +91,7 @@ func (b *backend) operationSetCheckOut(ctx context.Context, req *logical.Request
 		}
 		internalData := map[string]interface{}{
 			"service_account_name": serviceAccountName,
+			"set_name":             setName,
 		}
 		resp := b.Backend.Secret(secretAccessKeyType).Response(respData, internalData)
 		resp.Secret.Renewable = true
@@ -102,10 +107,6 @@ func (b *backend) operationSetCheckOut(ctx context.Context, req *logical.Request
 }
 
 func (b *backend) checkOut(ctx context.Context, storage logical.Storage, serviceAccountName string, newCheckOut *CheckOut) (string, error) {
-	lock := locksutil.LockForKey(b.checkOutLocks, serviceAccountName)
-	lock.Lock()
-	defer lock.Unlock()
-
 	if err := b.checkOutHandler.CheckOut(ctx, storage, serviceAccountName, newCheckOut); err != nil {
 		return "", err
 	}
@@ -134,13 +135,14 @@ func (b *backend) secretAccessKeys() *framework.Secret {
 	}
 }
 
+// TODO lock at the set level
 func (b *backend) renewCheckOut(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
-	serviceAccountName := req.Secret.InternalData["service_account_name"].(string)
-
-	lock := locksutil.LockForKey(b.checkOutLocks, serviceAccountName)
+	setName := req.Secret.InternalData["set_name"].(string)
+	lock := locksutil.LockForKey(b.checkOutLocks, setName)
 	lock.Lock()
 	defer lock.Unlock()
 
+	serviceAccountName := req.Secret.InternalData["service_account_name"].(string)
 	checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName)
 	if err != nil {
 		return nil, err
@@ -154,12 +156,12 @@ func (b *backend) renewCheckOut(ctx context.Context, req *logical.Request, field
 }
 
 func (b *backend) endCheckOut(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
-	serviceAccountName := req.Secret.InternalData["service_account_name"].(string)
-
-	lock := locksutil.LockForKey(b.checkOutLocks, serviceAccountName)
+	setName := req.Secret.InternalData["set_name"].(string)
+	lock := locksutil.LockForKey(b.checkOutLocks, setName)
 	lock.Lock()
 	defer lock.Unlock()
 
+	serviceAccountName := req.Secret.InternalData["service_account_name"].(string)
 	if err := b.checkOutHandler.CheckIn(ctx, req.Storage, serviceAccountName); err != nil {
 		return nil, err
 	}
@@ -217,6 +219,9 @@ func (b *backend) pathSetManageCheckIn() *framework.Path {
 func (b *backend) operationCheckIn(overrideCheckInEnforcement bool) framework.OperationFunc {
 	return func(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
 		setName := fieldData.Get("name").(string)
+		lock := locksutil.LockForKey(b.checkOutLocks, setName)
+		lock.Lock()
+		defer lock.Unlock()
 
 		serviceAccountNamesRaw, serviceAccountNamesSent := fieldData.GetOk("service_account_names")
 		var serviceAccountNames []string
@@ -236,102 +241,58 @@ func (b *backend) operationCheckIn(overrideCheckInEnforcement bool) framework.Op
 		disableCheckInEnforcement := overrideCheckInEnforcement || set.DisableCheckInEnforcement
 
 		// Track the service accounts we check in so we can include it in our response.
-		var checkIns []string
+		var toCheckIn []string
 
 		// Build and validate a list of service account names that we will be checking in.
-		var cantCheckInErrs error
 		if len(serviceAccountNames) == 0 {
 			// It's okay if the caller doesn't tell us which service accounts they
 			// want to check in as long as they only have one checked out.
 			// We'll assume that's the one they want to check in.
-			toCheckIn := make(map[string]*locksutil.LockEntry)
 			for _, setServiceAccount := range set.ServiceAccountNames {
-				// This is called in a func to avoid calling defer in a loop.
-				if err := func() error {
-					lock := locksutil.LockForKey(b.checkOutLocks, setServiceAccount)
-					lock.Lock()
-					releaseLock := true
-					defer func() {
-						if releaseLock {
-							lock.Unlock()
-						}
-					}()
-
-					checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, setServiceAccount)
-					if err != nil {
-						return err
-					}
-					if checkOut.IsAvailable {
-						return nil
-					}
-					if !disableCheckInEnforcement && !checkinAuthorized(req, checkOut) {
-						return nil
-					}
-					releaseLock = false
-					toCheckIn[setServiceAccount] = lock
-					return nil
-				}(); err != nil {
+				checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, setServiceAccount)
+				if err != nil {
 					return nil, err
 				}
+				if checkOut.IsAvailable {
+					continue
+				}
+				if !disableCheckInEnforcement && !checkinAuthorized(req, checkOut) {
+					continue
+				}
+				toCheckIn = append(toCheckIn, setServiceAccount)
 			}
-			defer func() {
-				for _, lock := range toCheckIn {
-					lock.Unlock()
-				}
-			}()
-			switch len(toCheckIn) {
-			case 0:
-				// Everything's already currently checked in, nothing else to do here.
-			case 1:
-				// This is what we need to continue with the check-in process.
-				for serviceAccountName, _ := range toCheckIn {
-					if err := b.checkOutHandler.CheckIn(ctx, req.Storage, serviceAccountName); err != nil {
-						return nil, err
-					}
-					checkIns = append(checkIns, serviceAccountName)
-				}
-			default:
+			if len(toCheckIn) > 1 {
 				return logical.ErrorResponse(`when multiple service accounts are checked out, the "service_account_names" to check in must be provided`), nil
 			}
 		} else {
+			var cantCheckInErrs error
 			for _, serviceAccountName := range serviceAccountNames {
-				// This is in a func to resolve the problem of calling defer in a loop.
-				if err := func() error {
-					lock := locksutil.LockForKey(b.checkOutLocks, serviceAccountName)
-					lock.Lock()
-					defer lock.Unlock()
-
-					checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName)
-					if err != nil {
-						return err
-					}
-					if checkOut.IsAvailable {
-						// Nothing further to do here.
-						return nil
-					}
-					if !disableCheckInEnforcement && !checkinAuthorized(req, checkOut) {
-						cantCheckInErrs = multierror.Append(cantCheckInErrs, fmt.Errorf(`"%s" can't be checked in because it wasn't checked out by the caller`, serviceAccountName))
-						// This isn't a stop-the-show error.
-						return nil
-					}
-					if err := b.checkOutHandler.CheckIn(ctx, req.Storage, serviceAccountName); err != nil {
-						return err
-					}
-					checkIns = append(checkIns, serviceAccountName)
-					return nil
-				}(); err != nil {
+				checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName)
+				if err != nil {
 					return nil, err
 				}
+				if checkOut.IsAvailable {
+					// Nothing further to do here.
+					continue
+				}
+				if !disableCheckInEnforcement && !checkinAuthorized(req, checkOut) {
+					cantCheckInErrs = multierror.Append(cantCheckInErrs, fmt.Errorf(`"%s" can't be checked in because it wasn't checked out by the caller`, serviceAccountName))
+					continue
+				}
+				toCheckIn = append(toCheckIn, serviceAccountName)
+			}
+			if cantCheckInErrs != nil {
+				return logical.ErrorResponse(cantCheckInErrs.Error()), nil
 			}
 		}
-		if cantCheckInErrs != nil {
-			// Let's return a 400 so the caller doesn't assume everything is OK. Their requested
-			// work is only partially done.
-			return logical.ErrorResponse(cantCheckInErrs.Error()), nil
+		for _, serviceAccountName := range toCheckIn {
+			if err := b.checkOutHandler.CheckIn(ctx, req.Storage, serviceAccountName); err != nil {
+				return nil, err
+			}
 		}
 		return &logical.Response{
 			Data: map[string]interface{}{
-				"check_ins": checkIns,
+				"check_ins": toCheckIn,
 			},
 		}, nil
 	}
@@ -359,6 +320,10 @@ func (b *backend) pathSetStatus() *framework.Path {
 
 func (b *backend) operationSetStatus(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
 	setName := fieldData.Get("name").(string)
+	lock := locksutil.LockForKey(b.checkOutLocks, setName)
+	lock.RLock()
+	defer lock.RUnlock()
+
 	set, err := readSet(ctx, req.Storage, setName)
 	if err != nil {
 		return nil, err
