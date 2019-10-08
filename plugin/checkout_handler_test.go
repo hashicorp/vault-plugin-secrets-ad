@@ -32,10 +32,12 @@ func setup() (context.Context, logical.Storage, string, *CheckOut) {
 	return ctx, storage, serviceAccountName, checkOut
 }
 
-func Test_StorageHandler(t *testing.T) {
+func TestCheckOutHandlerStorageLayer(t *testing.T) {
 	ctx, storage, serviceAccountName, testCheckOut := setup()
 
-	storageHandler := &StorageHandler{}
+	storageHandler := &checkOutHandler{
+		client: &fakeSecretsClient{},
+	}
 
 	// Service accounts must initially be checked in to the library
 	if err := storageHandler.CheckIn(ctx, storage, serviceAccountName); err != nil {
@@ -48,7 +50,7 @@ func Test_StorageHandler(t *testing.T) {
 	}
 
 	// We should have the testCheckOut in storage now.
-	storedCheckOut, err := storageHandler.Status(ctx, storage, serviceAccountName)
+	storedCheckOut, err := storageHandler.LoadCheckOut(ctx, storage, serviceAccountName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,8 +65,8 @@ func Test_StorageHandler(t *testing.T) {
 	// get a CurrentlyCheckedOutErr.
 	if err := storageHandler.CheckOut(ctx, storage, serviceAccountName, testCheckOut); err == nil {
 		t.Fatal("expected err but received none")
-	} else if err != ErrCheckedOut {
-		t.Fatalf("expected ErrCheckedOut, but received %s", err)
+	} else if err != errCheckedOut {
+		t.Fatalf("expected errCheckedOut, but received %s", err)
 	}
 
 	// If we try to check something in, it should succeed.
@@ -73,7 +75,7 @@ func Test_StorageHandler(t *testing.T) {
 	}
 
 	// We should no longer have the testCheckOut in storage.
-	storedCheckOut, err = storageHandler.Status(ctx, storage, serviceAccountName)
+	storedCheckOut, err = storageHandler.LoadCheckOut(ctx, storage, serviceAccountName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,37 +94,16 @@ func Test_StorageHandler(t *testing.T) {
 	}
 }
 
-func TestValidateInputs(t *testing.T) {
-	ctx, storage, serviceAccountName, checkOut := setup()
-
-	// Failure cases.
-	if err := validateInputs(nil, storage, serviceAccountName, checkOut, true); err == nil {
-		t.Fatal("expected err because ctx isn't provided")
-	}
-	if err := validateInputs(ctx, nil, serviceAccountName, checkOut, true); err == nil {
-		t.Fatal("expected err because storage isn't provided")
-	}
-	if err := validateInputs(ctx, storage, "", checkOut, true); err == nil {
-		t.Fatal("expected err because serviceAccountName isn't provided")
-	}
-	if err := validateInputs(ctx, storage, serviceAccountName, nil, true); err == nil {
-		t.Fatal("expected err because checkOut isn't provided")
-	}
-	// Success cases.
-	if err := validateInputs(ctx, storage, serviceAccountName, checkOut, true); err != nil {
-		t.Fatal(err)
-	}
-	if err := validateInputs(ctx, storage, serviceAccountName, nil, false); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestPasswordHandlerInterfaceFulfillment(t *testing.T) {
 	ctx, storage, serviceAccountName, checkOut := setup()
 
-	passwordHandler := &PasswordHandler{
+	passwordHandler := &checkOutHandler{
 		client: &fakeSecretsClient{},
-		child:  &fakeCheckOutHandler{},
+	}
+
+	// We must always start managing a service account by checking it in.
+	if err := passwordHandler.CheckIn(ctx, storage, serviceAccountName); err != nil {
+		t.Fatal(err)
 	}
 
 	// There should be no error during check-out.
@@ -131,9 +112,9 @@ func TestPasswordHandlerInterfaceFulfillment(t *testing.T) {
 	}
 
 	// The password should get rotated successfully during check-in.
-	_, err := retrievePassword(ctx, storage, serviceAccountName)
-	if err != ErrNotFound {
-		t.Fatal("expected ErrNotFound")
+	origPassword, err := retrievePassword(ctx, storage, serviceAccountName)
+	if err != nil {
+		t.Fatal(err)
 	}
 	if err := passwordHandler.CheckIn(ctx, storage, serviceAccountName); err != nil {
 		t.Fatal(err)
@@ -142,7 +123,7 @@ func TestPasswordHandlerInterfaceFulfillment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if currPassword == "" {
+	if currPassword == "" || currPassword == origPassword {
 		t.Fatal("expected password, but received none")
 	}
 
@@ -152,36 +133,15 @@ func TestPasswordHandlerInterfaceFulfillment(t *testing.T) {
 	}
 
 	currPassword, err = retrievePassword(ctx, storage, serviceAccountName)
-	if err != ErrNotFound {
-		t.Fatal("expected ErrNotFound")
+	if err != errNotFound {
+		t.Fatal("expected errNotFound")
 	}
-	checkOut, err = passwordHandler.Status(ctx, storage, serviceAccountName)
-	if err != nil {
-		t.Fatal(err)
+
+	checkOut, err = passwordHandler.LoadCheckOut(ctx, storage, serviceAccountName)
+	if err != errNotFound {
+		t.Fatal("expected err not found")
 	}
 	if checkOut != nil {
 		t.Fatal("expected checkOut to be nil")
 	}
-}
-
-type fakeCheckOutHandler struct{}
-
-func (f *fakeCheckOutHandler) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
-	return nil
-}
-
-func (f *fakeCheckOutHandler) Renew(ctx context.Context, storage logical.Storage, serviceAccountName string, updatedCheckOut *CheckOut) error {
-	return nil
-}
-
-func (f *fakeCheckOutHandler) CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
-	return nil
-}
-
-func (f *fakeCheckOutHandler) Delete(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
-	return nil
-}
-
-func (f *fakeCheckOutHandler) Status(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error) {
-	return nil, nil
 }
