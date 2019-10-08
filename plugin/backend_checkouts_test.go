@@ -416,7 +416,7 @@ func CheckInitialStatus(t *testing.T) {
 
 func PerformCheckOut(t *testing.T) {
 	req := &logical.Request{
-		Operation: logical.ReadOperation,
+		Operation: logical.UpdateOperation,
 		Path:      libraryPrefix + "test-set/check-out",
 		Storage:   testStorage,
 	}
@@ -490,7 +490,7 @@ func CheckUpdatedStatus(t *testing.T) {
 
 func NormalCheckIn(t *testing.T) {
 	req := &logical.Request{
-		Operation: logical.ReadOperation,
+		Operation: logical.UpdateOperation,
 		Path:      libraryPrefix + "test-set/check-in",
 		Storage:   testStorage,
 	}
@@ -509,7 +509,7 @@ func NormalCheckIn(t *testing.T) {
 
 func ForceCheckIn(t *testing.T) {
 	req := &logical.Request{
-		Operation: logical.ReadOperation,
+		Operation: logical.UpdateOperation,
 		Path:      libraryPrefix + "manage/test-set/check-in",
 		Storage:   testStorage,
 	}

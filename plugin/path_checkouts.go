@@ -27,7 +27,7 @@ func (b *backend) pathSetCheckOut() *framework.Path {
 			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.ReadOperation: &framework.PathOperation{
+			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.operationSetCheckOut,
 				Summary:  "Check a service account out from the library.",
 			},
@@ -173,7 +173,7 @@ func (b *backend) pathSetCheckIn() *framework.Path {
 			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.ReadOperation: &framework.PathOperation{
+			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.operationCheckIn(false),
 				Summary:  "Check service accounts in to the library.",
 			},
@@ -197,7 +197,7 @@ func (b *backend) pathSetManageCheckIn() *framework.Path {
 			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.ReadOperation: &framework.PathOperation{
+			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.operationCheckIn(true),
 				Summary:  "Check service accounts in to the library.",
 			},
