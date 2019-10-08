@@ -364,7 +364,6 @@ Manage sets to build a library of service accounts that can be checked out.
 `
 	setHelpDescription = `
 This endpoint allows you to read, write, and delete individual sets that are used for checking out service accounts.
-
 Deleting a set can only be performed if all of its service accounts are currently checked in.
 `
 	pathListSetsHelpSyn = `
