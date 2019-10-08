@@ -328,7 +328,7 @@ func (b *backend) operationSetStatus(ctx context.Context, req *logical.Request, 
 		return logical.ErrorResponse(fmt.Sprintf(`%q doesn't exist`, setName)), nil
 	}
 	respData := make(map[string]interface{})
-	
+
 	for _, serviceAccountName := range set.ServiceAccountNames {
 		checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName)
 		if err != nil {
