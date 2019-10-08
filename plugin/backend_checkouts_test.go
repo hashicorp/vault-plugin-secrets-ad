@@ -15,17 +15,17 @@ func TestCheckOuts(t *testing.T) {
 	t.Run("plant config", PlantConfig)
 
 	// Exercise all set endpoints.
-	t.Run("write set", WriteReserve)
-	t.Run("read set", ReadReserve)
-	t.Run("read set status", ReadReserveStatus)
-	t.Run("write set toggle off", WriteReserveToggleOff)
-	t.Run("read set toggle off", ReadReserveToggleOff)
-	t.Run("write conflicting set", WriteReserveWithConflictingServiceAccounts)
-	t.Run("list sets", ListReserves)
-	t.Run("delete set", DeleteReserve)
+	t.Run("write set", WriteSet)
+	t.Run("read set", ReadSet)
+	t.Run("read set status", ReadSetStatus)
+	t.Run("write set toggle off", WriteSetToggleOff)
+	t.Run("read set toggle off", ReadSetToggleOff)
+	t.Run("write conflicting set", WriteSetWithConflictingServiceAccounts)
+	t.Run("list sets", ListSets)
+	t.Run("delete set", DeleteSet)
 
 	// Do some common updates on sets and ensure they work.
-	t.Run("write set", WriteReserve)
+	t.Run("write set", WriteSet)
 	t.Run("add service account", AddAnotherServiceAccount)
 	t.Run("remove service account", RemoveServiceAccount)
 
@@ -168,7 +168,7 @@ func TestCheckOutRaces(t *testing.T) {
 	}
 }
 
-func WriteReserve(t *testing.T) {
+func WriteSet(t *testing.T) {
 	req := &logical.Request{
 		Operation: logical.CreateOperation,
 		Path:      libraryPrefix + "test-set",
@@ -225,7 +225,7 @@ func RemoveServiceAccount(t *testing.T) {
 	}
 }
 
-func ReadReserve(t *testing.T) {
+func ReadSet(t *testing.T) {
 	req := &logical.Request{
 		Operation: logical.ReadOperation,
 		Path:      libraryPrefix + "test-set",
@@ -256,7 +256,7 @@ func ReadReserve(t *testing.T) {
 	}
 }
 
-func WriteReserveToggleOff(t *testing.T) {
+func WriteSetToggleOff(t *testing.T) {
 	req := &logical.Request{
 		Operation: logical.UpdateOperation,
 		Path:      libraryPrefix + "test-set",
@@ -276,7 +276,7 @@ func WriteReserveToggleOff(t *testing.T) {
 	}
 }
 
-func ReadReserveToggleOff(t *testing.T) {
+func ReadSetToggleOff(t *testing.T) {
 	req := &logical.Request{
 		Operation: logical.ReadOperation,
 		Path:      libraryPrefix + "test-set",
@@ -299,7 +299,7 @@ func ReadReserveToggleOff(t *testing.T) {
 	}
 }
 
-func ReadReserveStatus(t *testing.T) {
+func ReadSetStatus(t *testing.T) {
 	req := &logical.Request{
 		Operation: logical.ReadOperation,
 		Path:      libraryPrefix + "test-set/status",
@@ -324,7 +324,7 @@ func ReadReserveStatus(t *testing.T) {
 	}
 }
 
-func WriteReserveWithConflictingServiceAccounts(t *testing.T) {
+func WriteSetWithConflictingServiceAccounts(t *testing.T) {
 	req := &logical.Request{
 		Operation: logical.CreateOperation,
 		Path:      libraryPrefix + "test-set2",
@@ -342,7 +342,7 @@ func WriteReserveWithConflictingServiceAccounts(t *testing.T) {
 	}
 }
 
-func ListReserves(t *testing.T) {
+func ListSets(t *testing.T) {
 	req := &logical.Request{
 		Operation: logical.ListOperation,
 		Path:      libraryPrefix,
@@ -367,7 +367,7 @@ func ListReserves(t *testing.T) {
 	}
 }
 
-func DeleteReserve(t *testing.T) {
+func DeleteSet(t *testing.T) {
 	req := &logical.Request{
 		Operation: logical.DeleteOperation,
 		Path:      libraryPrefix + "test-set",
