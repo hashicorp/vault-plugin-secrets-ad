@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -17,7 +16,6 @@ func setup() (context.Context, logical.Storage, string, *CheckOut) {
 	checkOut := &CheckOut{
 		BorrowerEntityID:    "entity-id",
 		BorrowerClientToken: "client-token",
-		Due:                 time.Now().UTC(),
 	}
 	config := &configuration{
 		PasswordConf: &passwordConf{
@@ -65,8 +63,8 @@ func Test_StorageHandler(t *testing.T) {
 	// get a CurrentlyCheckedOutErr.
 	if err := storageHandler.CheckOut(ctx, storage, serviceAccountName, testCheckOut); err == nil {
 		t.Fatal("expected err but received none")
-	} else if err != ErrCurrentlyCheckedOut {
-		t.Fatalf("expected ErrCurrentlyCheckedOut, but received %s", err)
+	} else if err != ErrCheckedOut {
+		t.Fatalf("expected ErrCheckedOut, but received %s", err)
 	}
 
 	// If we try to check something in, it should succeed.
@@ -169,6 +167,10 @@ func TestPasswordHandlerInterfaceFulfillment(t *testing.T) {
 type fakeCheckOutHandler struct{}
 
 func (f *fakeCheckOutHandler) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
+	return nil
+}
+
+func (f *fakeCheckOutHandler) Renew(ctx context.Context, storage logical.Storage, serviceAccountName string, updatedCheckOut *CheckOut) error {
 	return nil
 }
 

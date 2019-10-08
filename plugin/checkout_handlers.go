@@ -3,7 +3,6 @@ package plugin
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -12,9 +11,9 @@ import (
 const checkoutStoragePrefix = "checkout/"
 
 var (
-	// ErrCurrentlyCheckedOut is returned when a check-out request is received
+	// ErrCheckedOut is returned when a check-out request is received
 	// for a service account that's already checked out.
-	ErrCurrentlyCheckedOut = errors.New("currently checked out")
+	ErrCheckedOut = errors.New("checked out")
 
 	// ErrNotFound is used when a requested item doesn't exist.
 	ErrNotFound = errors.New("not found")
@@ -23,18 +22,18 @@ var (
 // CheckOut provides information for a service account that is currently
 // checked out.
 type CheckOut struct {
-	IsAvailable         bool      `json:"is_available"`
-	BorrowerEntityID    string    `json:"borrower_entity_id"`
-	BorrowerClientToken string    `json:"borrower_client_token"`
-	Due                 time.Time `json:"due"`
+	IsAvailable         bool   `json:"is_available"`
+	BorrowerEntityID    string `json:"borrower_entity_id"`
+	BorrowerClientToken string `json:"borrower_client_token"`
 }
 
+// TODO this object model needs to be flattened and moved to its own package if some methods need to remain private
 // CheckOutHandler is an interface used to break down tasks involved in managing checkouts. These tasks
 // are many and can be complex, so it helps to break them down into small, easily testable units
 // that help us build our confidence in the code.
 type CheckOutHandler interface {
 	// CheckOut attempts to check out a service account. If the account is unavailable, it returns
-	// ErrCurrentlyCheckedOut. If the service account isn't managed by this plugin, it returns
+	// ErrCheckedOut. If the service account isn't managed by this plugin, it returns
 	// ErrNotFound.
 	CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error
 
@@ -139,7 +138,7 @@ type StorageHandler struct{}
 
 // CheckOut will return:
 //  - Nil if it was successfully able to perform the requested check out.
-//  - ErrCurrentlyCheckedOut if the account was already checked out.
+//  - ErrCheckedOut if the account was already checked out.
 //  - ErrNotFound if the service account isn't currently managed by this engine.
 //  - Some other err if it was unable to complete successfully.
 func (h *StorageHandler) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
@@ -147,19 +146,21 @@ func (h *StorageHandler) CheckOut(ctx context.Context, storage logical.Storage, 
 		return err
 	}
 	// Check if the service account is currently checked out.
-	if entry, err := storage.Get(ctx, checkoutStoragePrefix+serviceAccountName); err != nil {
+	currentEntry, err := storage.Get(ctx, checkoutStoragePrefix+serviceAccountName)
+	if err != nil {
 		return err
-	} else if entry == nil {
-		return ErrNotFound
-	} else {
-		currentCheckOut := &CheckOut{}
-		if err := entry.DecodeJSON(currentCheckOut); err != nil {
-			return err
-		}
-		if !currentCheckOut.IsAvailable {
-			return ErrCurrentlyCheckedOut
-		}
 	}
+	if currentEntry == nil {
+		return ErrNotFound
+	}
+	currentCheckOut := &CheckOut{}
+	if err := currentEntry.DecodeJSON(currentCheckOut); err != nil {
+		return err
+	}
+	if !currentCheckOut.IsAvailable {
+		return ErrCheckedOut
+	}
+
 	// Since it's not, store the new check-out.
 	entry, err := logical.StorageEntryJSON(checkoutStoragePrefix+serviceAccountName, checkOut)
 	if err != nil {

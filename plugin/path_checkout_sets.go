@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/vault/sdk/framework"
+	"github.com/hashicorp/vault/sdk/helper/locksutil"
 	"github.com/hashicorp/vault/sdk/helper/strutil"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
-// TODO need to address raciness, this is planned for a subsequent PR when the CheckOutHandler model is finalized.
 const libraryPrefix = "library/"
 
 type librarySet struct {
@@ -21,7 +20,21 @@ type librarySet struct {
 	DisableCheckInEnforcement bool          `json:"disable_check_in_enforcement"`
 }
 
-func (b *backend) pathListReserves() *framework.Path {
+// Validates ensures that a set meets our code assumptions that TTLs are set in
+// a way that makes sense, and that there's at least one service account.
+func (l *librarySet) Validate() error {
+	if len(l.ServiceAccountNames) < 1 {
+		return fmt.Errorf(`at least one service account must be configured`)
+	}
+	if l.MaxTTL > 0 {
+		if l.MaxTTL < l.TTL {
+			return fmt.Errorf(`max_ttl (%d seconds) may not be less than ttl (%d seconds)`, l.MaxTTL, l.TTL)
+		}
+	}
+	return nil
+}
+
+func (b *backend) pathListSets() *framework.Path {
 	return &framework.Path{
 		Pattern: libraryPrefix + "?$",
 		Operations: map[logical.Operation]framework.OperationHandler{
@@ -42,7 +55,7 @@ func (b *backend) setListOperation(ctx context.Context, req *logical.Request, _ 
 	return logical.ListResponse(keys), nil
 }
 
-func (b *backend) pathReserves() *framework.Path {
+func (b *backend) pathSets() *framework.Path {
 	return &framework.Path{
 		Pattern: libraryPrefix + framework.GenericNameRegex("name"),
 		Fields: map[string]*framework.FieldSchema{
@@ -73,19 +86,19 @@ func (b *backend) pathReserves() *framework.Path {
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.CreateOperation: &framework.PathOperation{
-				Callback: b.operationReserveCreate,
+				Callback: b.operationSetCreate,
 				Summary:  "Create a library set.",
 			},
 			logical.UpdateOperation: &framework.PathOperation{
-				Callback: b.operationReserveUpdate,
+				Callback: b.operationSetUpdate,
 				Summary:  "Update a library set.",
 			},
 			logical.ReadOperation: &framework.PathOperation{
-				Callback: b.operationReserveRead,
+				Callback: b.operationSetRead,
 				Summary:  "Read a library set.",
 			},
 			logical.DeleteOperation: &framework.PathOperation{
-				Callback: b.operationReserveDelete,
+				Callback: b.operationSetDelete,
 				Summary:  "Delete a library set.",
 			},
 		},
@@ -103,8 +116,13 @@ func (b *backend) operationSetExistenceCheck(ctx context.Context, req *logical.R
 	return set != nil, nil
 }
 
-func (b *backend) operationReserveCreate(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
+func (b *backend) operationSetCreate(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
 	setName := fieldData.Get("name").(string)
+
+	lock := locksutil.LockForKey(b.checkOutLocks, setName)
+	lock.Lock()
+	defer lock.Unlock()
+
 	serviceAccountNames := fieldData.Get("service_account_names").([]string)
 	ttl := time.Duration(fieldData.Get("ttl").(int)) * time.Second
 	maxTTL := time.Duration(fieldData.Get("max_ttl").(int)) * time.Second
@@ -113,31 +131,17 @@ func (b *backend) operationReserveCreate(ctx context.Context, req *logical.Reque
 	if len(serviceAccountNames) == 0 {
 		return logical.ErrorResponse(`"service_account_names" must be provided`), nil
 	}
+
 	// Ensure these service accounts aren't already managed by another check-out set.
-	var alreadyManagedErr error
 	for _, serviceAccountName := range serviceAccountNames {
 		if _, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName); err != nil {
 			if err == ErrNotFound {
 				// This is what we want to see.
 				continue
 			}
-			// There is a more persistent error reaching storage.
 			return nil, err
 		}
-		// If we reach here, the error is nil. That means there's an existing CheckOut for this
-		// service account.
-		alreadyManagedErr = multierror.Append(alreadyManagedErr, fmt.Errorf("%s is already managed by another set, please remove it and try again", serviceAccountName))
-	}
-	if alreadyManagedErr != nil {
-		return logical.ErrorResponse(alreadyManagedErr.Error()), nil
-	}
-
-	// Now we need to check in all these service accounts so they'll be listed as managed by this
-	// plugin and available.
-	for _, serviceAccountName := range serviceAccountNames {
-		if err := b.checkOutHandler.CheckIn(ctx, req.Storage, serviceAccountName); err != nil {
-			return nil, err
-		}
+		return logical.ErrorResponse(fmt.Sprintf("%q is already managed by another set", serviceAccountName)), nil
 	}
 
 	set := &librarySet{
@@ -146,14 +150,26 @@ func (b *backend) operationReserveCreate(ctx context.Context, req *logical.Reque
 		MaxTTL:                    maxTTL,
 		DisableCheckInEnforcement: disableCheckInEnforcement,
 	}
+	if err := set.Validate(); err != nil {
+		return logical.ErrorResponse(err.Error()), nil
+	}
+	for _, serviceAccountName := range serviceAccountNames {
+		if err := b.checkOutHandler.CheckIn(ctx, req.Storage, serviceAccountName); err != nil {
+			return nil, err
+		}
+	}
 	if err := storeSet(ctx, req.Storage, setName, set); err != nil {
 		return nil, err
 	}
 	return nil, nil
 }
 
-func (b *backend) operationReserveUpdate(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
+func (b *backend) operationSetUpdate(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
 	setName := fieldData.Get("name").(string)
+
+	lock := locksutil.LockForKey(b.checkOutLocks, setName)
+	lock.Lock()
+	defer lock.Unlock()
 
 	newServiceAccountNamesRaw, newServiceAccountNamesSent := fieldData.GetOk("service_account_names")
 	var newServiceAccountNames []string
@@ -184,52 +200,44 @@ func (b *backend) operationReserveUpdate(ctx context.Context, req *logical.Reque
 		return nil, err
 	}
 	if set == nil {
-		return logical.ErrorResponse(`"%s" doesn't exist`, setName), nil
+		return logical.ErrorResponse(fmt.Sprintf(`%q doesn't exist`, setName)), nil
 	}
-	if newServiceAccountNamesSent {
-		beingAdded := strutil.Difference(newServiceAccountNames, set.ServiceAccountNames, true)
 
-		// For new service accounts, we need to make sure they're not already handled by another set.
-		var alreadyManagedErr error
+	var beingAdded []string
+	var beingDeleted []string
+	if newServiceAccountNamesSent {
+
+		// For new service accounts we receive, before we check them in, ensure they're not in another set.
+		beingAdded = strutil.Difference(newServiceAccountNames, set.ServiceAccountNames, true)
 		for _, newServiceAccountName := range beingAdded {
 			if _, err := b.checkOutHandler.Status(ctx, req.Storage, newServiceAccountName); err != nil {
 				if err == ErrNotFound {
-					// This is what we want to see.
+					// Great, this validates that it's not in use in another set.
 					continue
 				}
-				// There is a more persistent error reaching storage.
 				return nil, err
 			}
-			// If we reach here, the error is nil. That means there's an existing CheckOut for this
-			// service account.
-			alreadyManagedErr = multierror.Append(alreadyManagedErr, fmt.Errorf("%s is already managed by another set, please remove it and try again", newServiceAccountName))
-		}
-		if alreadyManagedErr != nil {
-			return logical.ErrorResponse(alreadyManagedErr.Error()), nil
+			return logical.ErrorResponse(fmt.Sprintf("%q is already managed by another set", newServiceAccountName)), nil
 		}
 
-		// Now we need to check in all these service accounts so they'll be listed as managed by this
-		// plugin and available.
-		for _, newServiceAccountName := range beingAdded {
-			if err := b.checkOutHandler.CheckIn(ctx, req.Storage, newServiceAccountName); err != nil {
-				return nil, err
-			}
-		}
-
-		// For service accounts we won't be handling anymore, we need to remove their passwords and delete them
-		// from storage.
-		beingDeleted := strutil.Difference(set.ServiceAccountNames, newServiceAccountNames, true)
-		var deletionErrs error
+		// For service accounts we won't be handling anymore, before we delete them, ensure they're not checked out.
+		beingDeleted = strutil.Difference(set.ServiceAccountNames, newServiceAccountNames, true)
 		for _, prevServiceAccountName := range beingDeleted {
-			if err := b.deleteSetServiceAccount(ctx, req.Storage, prevServiceAccountName); err != nil {
-				deletionErrs = multierror.Append(deletionErrs, err)
+			checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, prevServiceAccountName)
+			if err != nil {
+				if err == ErrNotFound {
+					// Nothing else to do here.
+					continue
+				}
+				return nil, err
 			}
-		}
-		if deletionErrs != nil {
-			return nil, deletionErrs
+			if !checkOut.IsAvailable {
+				return logical.ErrorResponse(fmt.Sprintf(`"%s" can't be deleted because it is currently checked out'`, prevServiceAccountName)), nil
+			}
 		}
 		set.ServiceAccountNames = newServiceAccountNames
 	}
+
 	if ttlSent {
 		set.TTL = ttl
 	}
@@ -239,14 +247,34 @@ func (b *backend) operationReserveUpdate(ctx context.Context, req *logical.Reque
 	if enforcementSent {
 		set.DisableCheckInEnforcement = disableCheckInEnforcement
 	}
+	if err := set.Validate(); err != nil {
+		return logical.ErrorResponse(err.Error()), nil
+	}
+
+	// Now that we know we can take all these actions, let's take them.
+	for _, newServiceAccountName := range beingAdded {
+		if err := b.checkOutHandler.CheckIn(ctx, req.Storage, newServiceAccountName); err != nil {
+			return nil, err
+		}
+	}
+	for _, prevServiceAccountName := range beingDeleted {
+		if err := b.checkOutHandler.Delete(ctx, req.Storage, prevServiceAccountName); err != nil {
+			return nil, err
+		}
+	}
 	if err := storeSet(ctx, req.Storage, setName, set); err != nil {
 		return nil, err
 	}
 	return nil, nil
 }
 
-func (b *backend) operationReserveRead(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
+func (b *backend) operationSetRead(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
 	setName := fieldData.Get("name").(string)
+
+	lock := locksutil.LockForKey(b.checkOutLocks, setName)
+	lock.RLock()
+	defer lock.RUnlock()
+
 	set, err := readSet(ctx, req.Storage, setName)
 	if err != nil {
 		return nil, err
@@ -264,8 +292,13 @@ func (b *backend) operationReserveRead(ctx context.Context, req *logical.Request
 	}, nil
 }
 
-func (b *backend) operationReserveDelete(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
+func (b *backend) operationSetDelete(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
 	setName := fieldData.Get("name").(string)
+
+	lock := locksutil.LockForKey(b.checkOutLocks, setName)
+	lock.Lock()
+	defer lock.Unlock()
+
 	set, err := readSet(ctx, req.Storage, setName)
 	if err != nil {
 		return nil, err
@@ -274,14 +307,23 @@ func (b *backend) operationReserveDelete(ctx context.Context, req *logical.Reque
 		return nil, nil
 	}
 	// We need to remove all the items we'd stored for these service accounts.
-	var deletionErrs error
 	for _, serviceAccountName := range set.ServiceAccountNames {
-		if err := b.deleteSetServiceAccount(ctx, req.Storage, serviceAccountName); err != nil {
-			deletionErrs = multierror.Append(deletionErrs, err)
+		checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName)
+		if err != nil {
+			if err == ErrNotFound {
+				// Nothing else to do here.
+				continue
+			}
+			return nil, err
+		}
+		if !checkOut.IsAvailable {
+			return logical.ErrorResponse(fmt.Sprintf(`"%s" can't be deleted because it is currently checked out'`, serviceAccountName)), nil
 		}
 	}
-	if deletionErrs != nil {
-		return nil, deletionErrs
+	for _, serviceAccountName := range set.ServiceAccountNames {
+		if err := b.checkOutHandler.Delete(ctx, req.Storage, serviceAccountName); err != nil {
+			return nil, err
+		}
 	}
 	if err := req.Storage.Delete(ctx, libraryPrefix+setName); err != nil {
 		return nil, err
@@ -316,32 +358,12 @@ func storeSet(ctx context.Context, storage logical.Storage, setName string, set 
 	return storage.Put(ctx, entry)
 }
 
-// deleteSetServiceAccount errors if an account can't presently be deleted, or deletes it.
-func (b *backend) deleteSetServiceAccount(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
-	checkOut, err := b.checkOutHandler.Status(ctx, storage, serviceAccountName)
-	if err != nil {
-		return err
-	}
-	if checkOut == nil {
-		// Nothing further to do here.
-		return nil
-	}
-	if !checkOut.IsAvailable {
-		return fmt.Errorf(`"%s" can't be deleted because it is currently checked out'`, serviceAccountName)
-	}
-	if err := b.checkOutHandler.Delete(ctx, storage, serviceAccountName); err != nil {
-		return err
-	}
-	return nil
-}
-
 const (
 	setHelpSynopsis = `
 Manage sets to build a library of service accounts that can be checked out.
 `
 	setHelpDescription = `
 This endpoint allows you to read, write, and delete individual sets that are used for checking out service accounts.
-
 Deleting a set can only be performed if all of its service accounts are currently checked in.
 `
 	pathListSetsHelpSyn = `

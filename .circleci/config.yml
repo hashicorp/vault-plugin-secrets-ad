@@ -11,8 +11,8 @@ jobs:
         command: |
           echo 'export GO111MODULE=on' >> $BASH_ENV
     - run:
-        name: "Run Tests"
-        command: make test
+        name: "Run All Tests with Race Detection"
+        command: make testrace
     - run:
         name: "Install Gox"
         command: go get github.com/mitchellh/gox
