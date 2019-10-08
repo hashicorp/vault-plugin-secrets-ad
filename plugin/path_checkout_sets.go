@@ -134,8 +134,8 @@ func (b *backend) operationSetCreate(ctx context.Context, req *logical.Request, 
 
 	// Ensure these service accounts aren't already managed by another check-out set.
 	for _, serviceAccountName := range serviceAccountNames {
-		if _, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName); err != nil {
-			if err == ErrNotFound {
+		if _, err := b.checkOutHandler.LoadCheckOut(ctx, req.Storage, serviceAccountName); err != nil {
+			if err == errNotFound {
 				// This is what we want to see.
 				continue
 			}
@@ -210,8 +210,8 @@ func (b *backend) operationSetUpdate(ctx context.Context, req *logical.Request, 
 		// For new service accounts we receive, before we check them in, ensure they're not in another set.
 		beingAdded = strutil.Difference(newServiceAccountNames, set.ServiceAccountNames, true)
 		for _, newServiceAccountName := range beingAdded {
-			if _, err := b.checkOutHandler.Status(ctx, req.Storage, newServiceAccountName); err != nil {
-				if err == ErrNotFound {
+			if _, err := b.checkOutHandler.LoadCheckOut(ctx, req.Storage, newServiceAccountName); err != nil {
+				if err == errNotFound {
 					// Great, this validates that it's not in use in another set.
 					continue
 				}
@@ -223,9 +223,9 @@ func (b *backend) operationSetUpdate(ctx context.Context, req *logical.Request, 
 		// For service accounts we won't be handling anymore, before we delete them, ensure they're not checked out.
 		beingDeleted = strutil.Difference(set.ServiceAccountNames, newServiceAccountNames, true)
 		for _, prevServiceAccountName := range beingDeleted {
-			checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, prevServiceAccountName)
+			checkOut, err := b.checkOutHandler.LoadCheckOut(ctx, req.Storage, prevServiceAccountName)
 			if err != nil {
-				if err == ErrNotFound {
+				if err == errNotFound {
 					// Nothing else to do here.
 					continue
 				}
@@ -308,9 +308,9 @@ func (b *backend) operationSetDelete(ctx context.Context, req *logical.Request, 
 	}
 	// We need to remove all the items we'd stored for these service accounts.
 	for _, serviceAccountName := range set.ServiceAccountNames {
-		checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName)
+		checkOut, err := b.checkOutHandler.LoadCheckOut(ctx, req.Storage, serviceAccountName)
 		if err != nil {
-			if err == ErrNotFound {
+			if err == errNotFound {
 				// Nothing else to do here.
 				continue
 			}

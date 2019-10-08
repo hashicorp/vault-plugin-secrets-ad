@@ -27,9 +27,8 @@ func newBackend(client secretsClient) *backend {
 		roleCache:      cache.New(roleCacheExpiration, roleCacheCleanup),
 		credCache:      cache.New(credCacheExpiration, credCacheCleanup),
 		rotateRootLock: new(int32),
-		checkOutHandler: &PasswordHandler{ // TODO the object model may change here but we do need to place something realistic here for testing
+		checkOutHandler: &checkOutHandler{
 			client: client,
-			child:  &StorageHandler{},
 		},
 		checkOutLocks: locksutil.CreateLocks(),
 	}
@@ -75,7 +74,7 @@ type backend struct {
 	credLock       sync.Mutex
 	rotateRootLock *int32
 
-	checkOutHandler CheckOutHandler
+	checkOutHandler *checkOutHandler
 	// checkOutLocks are used for avoiding races
 	// when working with sets through the check-out system.
 	checkOutLocks []*locksutil.LockEntry

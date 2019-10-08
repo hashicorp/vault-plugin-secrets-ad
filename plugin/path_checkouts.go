@@ -78,7 +78,7 @@ func (b *backend) operationSetCheckOut(ctx context.Context, req *logical.Request
 	// Check out the first service account available.
 	for _, serviceAccountName := range set.ServiceAccountNames {
 		if err := b.checkOutHandler.CheckOut(ctx, req.Storage, serviceAccountName, newCheckOut); err != nil {
-			if err == ErrCheckedOut {
+			if err == errCheckedOut {
 				continue
 			}
 			return nil, err
@@ -141,7 +141,7 @@ func (b *backend) renewCheckOut(ctx context.Context, req *logical.Request, field
 	}
 
 	serviceAccountName := req.Secret.InternalData["service_account_name"].(string)
-	checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName)
+	checkOut, err := b.checkOutHandler.LoadCheckOut(ctx, req.Storage, serviceAccountName)
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +250,7 @@ func (b *backend) operationCheckIn(overrideCheckInEnforcement bool) framework.Op
 			// want to check in as long as they only have one checked out.
 			// We'll assume that's the one they want to check in.
 			for _, setServiceAccount := range set.ServiceAccountNames {
-				checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, setServiceAccount)
+				checkOut, err := b.checkOutHandler.LoadCheckOut(ctx, req.Storage, setServiceAccount)
 				if err != nil {
 					return nil, err
 				}
@@ -267,7 +267,7 @@ func (b *backend) operationCheckIn(overrideCheckInEnforcement bool) framework.Op
 			}
 		} else {
 			for _, serviceAccountName := range serviceAccountNames {
-				checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName)
+				checkOut, err := b.checkOutHandler.LoadCheckOut(ctx, req.Storage, serviceAccountName)
 				if err != nil {
 					return nil, err
 				}
@@ -330,7 +330,7 @@ func (b *backend) operationSetStatus(ctx context.Context, req *logical.Request, 
 	respData := make(map[string]interface{})
 
 	for _, serviceAccountName := range set.ServiceAccountNames {
-		checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName)
+		checkOut, err := b.checkOutHandler.LoadCheckOut(ctx, req.Storage, serviceAccountName)
 		if err != nil {
 			return nil, err
 		}
