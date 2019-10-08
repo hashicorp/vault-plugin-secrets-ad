@@ -132,6 +132,14 @@ func (b *backend) renewCheckOut(ctx context.Context, req *logical.Request, field
 	lock.RLock()
 	defer lock.RUnlock()
 
+	set, err := readSet(ctx, req.Storage, setName)
+	if err != nil {
+		return nil, err
+	}
+	if set == nil {
+		return logical.ErrorResponse(fmt.Sprintf(`%q doesn't exist`, setName)), nil
+	}
+
 	serviceAccountName := req.Secret.InternalData["service_account_name"].(string)
 	checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName)
 	if err != nil {
@@ -142,7 +150,10 @@ func (b *backend) renewCheckOut(ctx context.Context, req *logical.Request, field
 		// another user with access to the "manage check-ins" endpoint that forcibly checked it back in.
 		return logical.ErrorResponse(fmt.Sprintf("%s is already checked in, please call check-out to regain it", serviceAccountName)), nil
 	}
-	return &logical.Response{Secret: req.Secret}, nil
+	resp := &logical.Response{Secret: req.Secret}
+	resp.Secret.TTL = set.TTL
+	resp.Secret.MaxTTL = set.MaxTTL
+	return resp, nil
 }
 
 func (b *backend) endCheckOut(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
