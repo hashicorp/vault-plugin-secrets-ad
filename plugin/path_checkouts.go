@@ -295,7 +295,7 @@ func (b *backend) handleCheckIn(ctx context.Context, req *logical.Request, field
 			// Everything's already currently checked in, nothing else to do here.
 		case 1:
 			// This is what we need to continue with the check-in process.
-			for serviceAccountName, _ := range toCheckIn {
+			for serviceAccountName := range toCheckIn {
 				if err := b.checkOutHandler.CheckIn(ctx, req.Storage, serviceAccountName); err != nil {
 					return nil, err
 				}
