@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/locksutil"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -55,7 +54,7 @@ func (b *backend) operationSetCheckOut(ctx context.Context, req *logical.Request
 		return nil, err
 	}
 	if set == nil {
-		return logical.ErrorResponse(`"%s" doesn't exist`, setName), nil
+		return logical.ErrorResponse(fmt.Sprintf(`%q doesn't exist`, setName)), nil
 	}
 
 	// Prepare the check-out we'd like to execute.
@@ -78,10 +77,13 @@ func (b *backend) operationSetCheckOut(ctx context.Context, req *logical.Request
 
 	// Check out the first service account available.
 	for _, serviceAccountName := range set.ServiceAccountNames {
-		password, err := b.checkOut(ctx, req.Storage, serviceAccountName, newCheckOut)
-		if err == ErrCheckedOut {
-			continue
+		if err := b.checkOutHandler.CheckOut(ctx, req.Storage, serviceAccountName, newCheckOut); err != nil {
+			if err == ErrCheckedOut {
+				continue
+			}
+			return nil, err
 		}
+		password, err := retrievePassword(ctx, req.Storage, serviceAccountName)
 		if err != nil {
 			return nil, err
 		}
@@ -106,17 +108,6 @@ func (b *backend) operationSetCheckOut(ctx context.Context, req *logical.Request
 	}, req, 429)
 }
 
-func (b *backend) checkOut(ctx context.Context, storage logical.Storage, serviceAccountName string, newCheckOut *CheckOut) (string, error) {
-	if err := b.checkOutHandler.CheckOut(ctx, storage, serviceAccountName, newCheckOut); err != nil {
-		return "", err
-	}
-	password, err := retrievePassword(ctx, storage, serviceAccountName)
-	if err != nil {
-		return "", err
-	}
-	return password, nil
-}
-
 func (b *backend) secretAccessKeys() *framework.Secret {
 	return &framework.Secret{
 		Type: secretAccessKeyType,
@@ -135,12 +126,11 @@ func (b *backend) secretAccessKeys() *framework.Secret {
 	}
 }
 
-// TODO lock at the set level
 func (b *backend) renewCheckOut(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
 	setName := req.Secret.InternalData["set_name"].(string)
 	lock := locksutil.LockForKey(b.checkOutLocks, setName)
-	lock.Lock()
-	defer lock.Unlock()
+	lock.RLock()
+	defer lock.RUnlock()
 
 	serviceAccountName := req.Secret.InternalData["service_account_name"].(string)
 	checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName)
@@ -234,7 +224,7 @@ func (b *backend) operationCheckIn(overrideCheckInEnforcement bool) framework.Op
 			return nil, err
 		}
 		if set == nil {
-			return logical.ErrorResponse(`"%s" doesn't exist`, setName), nil
+			return logical.ErrorResponse(fmt.Sprintf(`%q doesn't exist`, setName)), nil
 		}
 
 		// If check-in enforcement is overridden or disabled at the set level, we should consider it disabled.
@@ -265,7 +255,6 @@ func (b *backend) operationCheckIn(overrideCheckInEnforcement bool) framework.Op
 				return logical.ErrorResponse(`when multiple service accounts are checked out, the "service_account_names" to check in must be provided`), nil
 			}
 		} else {
-			var cantCheckInErrs error
 			for _, serviceAccountName := range serviceAccountNames {
 				checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName)
 				if err != nil {
@@ -276,13 +265,9 @@ func (b *backend) operationCheckIn(overrideCheckInEnforcement bool) framework.Op
 					continue
 				}
 				if !disableCheckInEnforcement && !checkinAuthorized(req, checkOut) {
-					cantCheckInErrs = multierror.Append(cantCheckInErrs, fmt.Errorf(`"%s" can't be checked in because it wasn't checked out by the caller`, serviceAccountName))
-					continue
+					return logical.ErrorResponse(fmt.Sprintf(`"%s" can't be checked in because it wasn't checked out by the caller`, serviceAccountName)), nil
 				}
 				toCheckIn = append(toCheckIn, serviceAccountName)
-			}
-			if cantCheckInErrs != nil {
-				return logical.ErrorResponse(cantCheckInErrs.Error()), nil
 			}
 		}
 		for _, serviceAccountName := range toCheckIn {
@@ -329,7 +314,7 @@ func (b *backend) operationSetStatus(ctx context.Context, req *logical.Request, 
 		return nil, err
 	}
 	if set == nil {
-		return logical.ErrorResponse(`"%s" doesn't exist`, setName), nil
+		return logical.ErrorResponse(fmt.Sprintf(`%q doesn't exist`, setName)), nil
 	}
 	respData := make(map[string]interface{})
 
