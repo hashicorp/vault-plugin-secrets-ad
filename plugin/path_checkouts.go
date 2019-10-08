@@ -328,10 +328,7 @@ func (b *backend) operationSetStatus(ctx context.Context, req *logical.Request, 
 		return logical.ErrorResponse(fmt.Sprintf(`%q doesn't exist`, setName)), nil
 	}
 	respData := make(map[string]interface{})
-
-	// We don't worry about grabbing read locks for these because we expect this
-	// call to be rare and initiates by humans, and it's okay if it's not perfectly
-	// consistent since it's not performing any changes.
+	
 	for _, serviceAccountName := range set.ServiceAccountNames {
 		checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName)
 		if err != nil {
