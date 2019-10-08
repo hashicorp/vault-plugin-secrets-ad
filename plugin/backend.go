@@ -47,8 +47,8 @@ func newBackend(client secretsClient) *backend {
 			adBackend.pathSetManageCheckIn(),
 			adBackend.pathSetCheckOut(),
 			adBackend.pathSetStatus(),
-			adBackend.pathReserves(),
-			adBackend.pathListReserves(),
+			adBackend.pathSets(),
+			adBackend.pathListSets(),
 		},
 		PathsSpecial: &logical.Paths{
 			SealWrapStorage: []string{

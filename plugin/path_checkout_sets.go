@@ -35,7 +35,7 @@ func (l *librarySet) Validate() error {
 	return nil
 }
 
-func (b *backend) pathListReserves() *framework.Path {
+func (b *backend) pathListSets() *framework.Path {
 	return &framework.Path{
 		Pattern: libraryPrefix + "?$",
 		Operations: map[logical.Operation]framework.OperationHandler{
@@ -56,7 +56,7 @@ func (b *backend) setListOperation(ctx context.Context, req *logical.Request, _ 
 	return logical.ListResponse(keys), nil
 }
 
-func (b *backend) pathReserves() *framework.Path {
+func (b *backend) pathSets() *framework.Path {
 	return &framework.Path{
 		Pattern: libraryPrefix + framework.GenericNameRegex("name"),
 		Fields: map[string]*framework.FieldSchema{
@@ -87,19 +87,19 @@ func (b *backend) pathReserves() *framework.Path {
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.CreateOperation: &framework.PathOperation{
-				Callback: b.operationReserveCreate,
+				Callback: b.operationSetCreate,
 				Summary:  "Create a library set.",
 			},
 			logical.UpdateOperation: &framework.PathOperation{
-				Callback: b.operationReserveUpdate,
+				Callback: b.operationSetUpdate,
 				Summary:  "Update a library set.",
 			},
 			logical.ReadOperation: &framework.PathOperation{
-				Callback: b.operationReserveRead,
+				Callback: b.operationSetRead,
 				Summary:  "Read a library set.",
 			},
 			logical.DeleteOperation: &framework.PathOperation{
-				Callback: b.operationReserveDelete,
+				Callback: b.operationSetDelete,
 				Summary:  "Delete a library set.",
 			},
 		},
@@ -117,7 +117,7 @@ func (b *backend) operationSetExistenceCheck(ctx context.Context, req *logical.R
 	return set != nil, nil
 }
 
-func (b *backend) operationReserveCreate(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
+func (b *backend) operationSetCreate(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
 	setName := fieldData.Get("name").(string)
 	serviceAccountNames := fieldData.Get("service_account_names").([]string)
 	ttl := time.Duration(fieldData.Get("ttl").(int)) * time.Second
@@ -161,7 +161,7 @@ func (b *backend) operationReserveCreate(ctx context.Context, req *logical.Reque
 	return nil, nil
 }
 
-func (b *backend) operationReserveUpdate(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
+func (b *backend) operationSetUpdate(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
 	setName := fieldData.Get("name").(string)
 
 	newServiceAccountNamesRaw, newServiceAccountNamesSent := fieldData.GetOk("service_account_names")
@@ -254,7 +254,7 @@ func (b *backend) operationReserveUpdate(ctx context.Context, req *logical.Reque
 	return nil, nil
 }
 
-func (b *backend) operationReserveRead(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
+func (b *backend) operationSetRead(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
 	setName := fieldData.Get("name").(string)
 	set, err := readSet(ctx, req.Storage, setName)
 	if err != nil {
@@ -263,10 +263,6 @@ func (b *backend) operationReserveRead(ctx context.Context, req *logical.Request
 	if set == nil {
 		return nil, nil
 	}
-
-	// We don't worry about grabbing read locks for service accounts here because we expect this
-	// call to be rare and initiates by humans, and it's okay if it's not perfectly
-	// consistent since it's not performing any changes.
 	return &logical.Response{
 		Data: map[string]interface{}{
 			"service_account_names":        set.ServiceAccountNames,
@@ -277,7 +273,7 @@ func (b *backend) operationReserveRead(ctx context.Context, req *logical.Request
 	}, nil
 }
 
-func (b *backend) operationReserveDelete(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
+func (b *backend) operationSetDelete(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
 	setName := fieldData.Get("name").(string)
 	set, err := readSet(ctx, req.Storage, setName)
 	if err != nil {
@@ -347,7 +343,6 @@ func (b *backend) checkInNewServiceAccount(ctx context.Context, storage logical.
 		return true, fmt.Errorf("%s is already managed by another set, please remove it and try again", serviceAccountName)
 	}
 	if err != ErrNotFound {
-		// This is probably a persistent issue with reaching storage.
 		return false, err
 	}
 

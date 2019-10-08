@@ -74,11 +74,12 @@ func (b *backend) operationSetCheckOut(ctx context.Context, req *logical.Request
 
 	// Check out the first service account available.
 	for _, serviceAccountName := range set.ServiceAccountNames {
-		// checkOut is its own function to avoid deferring the lock release inside a loop,
-		// which would cause a memory leak.
 		password, err := b.checkOut(ctx, req.Storage, serviceAccountName, newCheckOut)
 		if err == ErrCheckedOut {
 			continue
+		}
+		if err != nil {
+			return nil, err
 		}
 		respData := map[string]interface{}{
 			"service_account_name": serviceAccountName,
@@ -95,13 +96,9 @@ func (b *backend) operationSetCheckOut(ctx context.Context, req *logical.Request
 	}
 
 	// If we arrived here, it's because we never had a hit for a service account that was available.
-	resp, err := logical.RespondWithStatusCode(&logical.Response{
-		Warnings: []string{"No service accounts available for check-out, please try again later."},
+	return logical.RespondWithStatusCode(&logical.Response{
+		Warnings: []string{"No service accounts available for check-out."},
 	}, req, 429)
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
 }
 
 func (b *backend) checkOut(ctx context.Context, storage logical.Storage, serviceAccountName string, newCheckOut *CheckOut) (string, error) {
@@ -109,7 +106,6 @@ func (b *backend) checkOut(ctx context.Context, storage logical.Storage, service
 	lock.Lock()
 	defer lock.Unlock()
 
-	// We've found a service account that we can check out. Let's do it and respond.
 	if err := b.checkOutHandler.CheckOut(ctx, storage, serviceAccountName, newCheckOut); err != nil {
 		return "", err
 	}
@@ -126,11 +122,11 @@ func (b *backend) secretAccessKeys() *framework.Secret {
 		Fields: map[string]*framework.FieldSchema{
 			"service_account_name": {
 				Type:        framework.TypeString,
-				Description: "Access Key",
+				Description: "Service account name",
 			},
 			"password": {
 				Type:        framework.TypeString,
-				Description: "Secret Key",
+				Description: "Password",
 			},
 		},
 		Renew:  b.renewCheckOut,
@@ -186,16 +182,12 @@ func (b *backend) pathSetCheckIn() *framework.Path {
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ReadOperation: &framework.PathOperation{
-				Callback: b.operationSetCheckIn,
+				Callback: b.operationCheckIn(false),
 				Summary:  "Check service accounts in to the library.",
 			},
 		},
 		HelpSynopsis: `Check service accounts in to the library.`,
 	}
-}
-
-func (b *backend) operationSetCheckIn(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
-	return b.handleCheckIn(ctx, req, fieldData, false)
 }
 
 func (b *backend) pathSetManageCheckIn() *framework.Path {
@@ -214,7 +206,7 @@ func (b *backend) pathSetManageCheckIn() *framework.Path {
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ReadOperation: &framework.PathOperation{
-				Callback: b.operationSetManageCheckIn,
+				Callback: b.operationCheckIn(true),
 				Summary:  "Check service accounts in to the library.",
 			},
 		},
@@ -222,129 +214,127 @@ func (b *backend) pathSetManageCheckIn() *framework.Path {
 	}
 }
 
-func (b *backend) operationSetManageCheckIn(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
-	return b.handleCheckIn(ctx, req, fieldData, true)
-}
+func (b *backend) operationCheckIn(overrideCheckInEnforcement bool) framework.OperationFunc {
+	return func(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
+		setName := fieldData.Get("name").(string)
 
-func (b *backend) handleCheckIn(ctx context.Context, req *logical.Request, fieldData *framework.FieldData, overrideCheckInEnforcement bool) (*logical.Response, error) {
-	setName := fieldData.Get("name").(string)
-
-	serviceAccountNamesRaw, serviceAccountNamesSent := fieldData.GetOk("service_account_names")
-	var serviceAccountNames []string
-	if serviceAccountNamesSent {
-		serviceAccountNames = serviceAccountNamesRaw.([]string)
-	}
-
-	set, err := readSet(ctx, req.Storage, setName)
-	if err != nil {
-		return nil, err
-	}
-	if set == nil {
-		return logical.ErrorResponse(`"%s" doesn't exist`, setName), nil
-	}
-
-	// If check-in enforcement is overridden or disabled at the set level, we should consider it disabled.
-	disableCheckInEnforcement := overrideCheckInEnforcement || set.DisableCheckInEnforcement
-
-	// Track the service accounts we check in so we can include it in our response.
-	var checkIns []string
-
-	// Build and validate a list of service account names that we will be checking in.
-	var cantCheckInErrs error
-	if len(serviceAccountNames) == 0 {
-		// It's okay if the caller doesn't tell us which service accounts they
-		// want to check in as long as they only have one checked out.
-		// We'll assume that's the one they want to check in.
-		toCheckIn := make(map[string]*locksutil.LockEntry)
-		for _, setServiceAccount := range set.ServiceAccountNames {
-			// This is called in a func to avoid calling defer in a loop.
-			if err := func() error {
-				lock := locksutil.LockForKey(b.checkOutLocks, setServiceAccount)
-				lock.Lock()
-				releaseLock := true
-				defer func() {
-					if releaseLock {
-						lock.Unlock()
-					}
-				}()
-
-				checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, setServiceAccount)
-				if err != nil {
-					return err
-				}
-				if checkOut.IsAvailable {
-					return nil
-				}
-				if !canCheckIn(req, checkOut, disableCheckInEnforcement) {
-					return nil
-				}
-				releaseLock = false
-				toCheckIn[setServiceAccount] = lock
-				return nil
-			}(); err != nil {
-				return nil, err
-			}
+		serviceAccountNamesRaw, serviceAccountNamesSent := fieldData.GetOk("service_account_names")
+		var serviceAccountNames []string
+		if serviceAccountNamesSent {
+			serviceAccountNames = serviceAccountNamesRaw.([]string)
 		}
-		defer func() {
-			for _, lock := range toCheckIn {
-				lock.Unlock()
-			}
-		}()
-		switch len(toCheckIn) {
-		case 0:
-			// Everything's already currently checked in, nothing else to do here.
-		case 1:
-			// This is what we need to continue with the check-in process.
-			for serviceAccountName := range toCheckIn {
-				if err := b.checkOutHandler.CheckIn(ctx, req.Storage, serviceAccountName); err != nil {
+
+		set, err := readSet(ctx, req.Storage, setName)
+		if err != nil {
+			return nil, err
+		}
+		if set == nil {
+			return logical.ErrorResponse(`"%s" doesn't exist`, setName), nil
+		}
+
+		// If check-in enforcement is overridden or disabled at the set level, we should consider it disabled.
+		disableCheckInEnforcement := overrideCheckInEnforcement || set.DisableCheckInEnforcement
+
+		// Track the service accounts we check in so we can include it in our response.
+		var checkIns []string
+
+		// Build and validate a list of service account names that we will be checking in.
+		var cantCheckInErrs error
+		if len(serviceAccountNames) == 0 {
+			// It's okay if the caller doesn't tell us which service accounts they
+			// want to check in as long as they only have one checked out.
+			// We'll assume that's the one they want to check in.
+			toCheckIn := make(map[string]*locksutil.LockEntry)
+			for _, setServiceAccount := range set.ServiceAccountNames {
+				// This is called in a func to avoid calling defer in a loop.
+				if err := func() error {
+					lock := locksutil.LockForKey(b.checkOutLocks, setServiceAccount)
+					lock.Lock()
+					releaseLock := true
+					defer func() {
+						if releaseLock {
+							lock.Unlock()
+						}
+					}()
+
+					checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, setServiceAccount)
+					if err != nil {
+						return err
+					}
+					if checkOut.IsAvailable {
+						return nil
+					}
+					if !disableCheckInEnforcement && !checkinAuthorized(req, checkOut) {
+						return nil
+					}
+					releaseLock = false
+					toCheckIn[setServiceAccount] = lock
+					return nil
+				}(); err != nil {
 					return nil, err
 				}
-				checkIns = append(checkIns, serviceAccountName)
 			}
-		default:
-			return logical.ErrorResponse(`when multiple service accounts are checked out, the "service_account_names" to check in must be provided`), nil
-		}
-	} else {
-		for _, serviceAccountName := range serviceAccountNames {
-			// This is in a func to resolve the problem of calling defer in a loop.
-			if err := func() error {
-				lock := locksutil.LockForKey(b.checkOutLocks, serviceAccountName)
-				lock.Lock()
-				defer lock.Unlock()
+			defer func() {
+				for _, lock := range toCheckIn {
+					lock.Unlock()
+				}
+			}()
+			switch len(toCheckIn) {
+			case 0:
+				// Everything's already currently checked in, nothing else to do here.
+			case 1:
+				// This is what we need to continue with the check-in process.
+				for serviceAccountName, _ := range toCheckIn {
+					if err := b.checkOutHandler.CheckIn(ctx, req.Storage, serviceAccountName); err != nil {
+						return nil, err
+					}
+					checkIns = append(checkIns, serviceAccountName)
+				}
+			default:
+				return logical.ErrorResponse(`when multiple service accounts are checked out, the "service_account_names" to check in must be provided`), nil
+			}
+		} else {
+			for _, serviceAccountName := range serviceAccountNames {
+				// This is in a func to resolve the problem of calling defer in a loop.
+				if err := func() error {
+					lock := locksutil.LockForKey(b.checkOutLocks, serviceAccountName)
+					lock.Lock()
+					defer lock.Unlock()
 
-				checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName)
-				if err != nil {
-					return err
-				}
-				if checkOut.IsAvailable {
-					// Nothing further to do here.
+					checkOut, err := b.checkOutHandler.Status(ctx, req.Storage, serviceAccountName)
+					if err != nil {
+						return err
+					}
+					if checkOut.IsAvailable {
+						// Nothing further to do here.
+						return nil
+					}
+					if !disableCheckInEnforcement && !checkinAuthorized(req, checkOut) {
+						cantCheckInErrs = multierror.Append(cantCheckInErrs, fmt.Errorf(`"%s" can't be checked in because it wasn't checked out by the caller`, serviceAccountName))
+						// This isn't a stop-the-show error.
+						return nil
+					}
+					if err := b.checkOutHandler.CheckIn(ctx, req.Storage, serviceAccountName); err != nil {
+						return err
+					}
+					checkIns = append(checkIns, serviceAccountName)
 					return nil
+				}(); err != nil {
+					return nil, err
 				}
-				if !canCheckIn(req, checkOut, disableCheckInEnforcement) {
-					cantCheckInErrs = multierror.Append(cantCheckInErrs, fmt.Errorf(`"%s" can't be checked in because it wasn't checked out by the caller`, serviceAccountName))
-					// This isn't a stop-the-show error.
-					return nil
-				}
-				if err := b.checkOutHandler.CheckIn(ctx, req.Storage, serviceAccountName); err != nil {
-					return err
-				}
-				checkIns = append(checkIns, serviceAccountName)
-				return nil
-			}(); err != nil {
-				return nil, err
 			}
 		}
+		if cantCheckInErrs != nil {
+			// Let's return a 400 so the caller doesn't assume everything is OK. Their requested
+			// work is only partially done.
+			return logical.ErrorResponse(cantCheckInErrs.Error()), nil
+		}
+		return &logical.Response{
+			Data: map[string]interface{}{
+				"check_ins": checkIns,
+			},
+		}, nil
 	}
-	if cantCheckInErrs != nil {
-		// Let's return a 400 so the caller doesn't assume everything is OK. Their requested
-		// work is only partially done.
-		return logical.ErrorResponse(cantCheckInErrs.Error()), nil
-	}
-	return &logical.Response{
-		Data: map[string]interface{}{
-			"check_ins": checkIns,
-		},
-	}, nil
 }
 
 func (b *backend) pathSetStatus() *framework.Path {
@@ -409,10 +399,7 @@ func (b *backend) operationSetStatus(ctx context.Context, req *logical.Request, 
 	}, nil
 }
 
-func canCheckIn(req *logical.Request, checkOut *CheckOut, disableCheckInEnforcement bool) bool {
-	if disableCheckInEnforcement {
-		return true
-	}
+func checkinAuthorized(req *logical.Request, checkOut *CheckOut) bool {
 	if checkOut.BorrowerEntityID != "" && req.EntityID != "" {
 		if checkOut.BorrowerEntityID == req.EntityID {
 			return true
