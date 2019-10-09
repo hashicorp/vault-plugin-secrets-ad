@@ -273,7 +273,7 @@ func (b *backend) operationCheckIn(overrideCheckInEnforcement bool) framework.Op
 				}
 				// First guard that they should be able to do anything at all.
 				if !checkOut.IsAvailable && !disableCheckInEnforcement && !checkinAuthorized(req, checkOut) {
-					return logical.ErrorResponse(fmt.Sprintf(`"%s" can't be checked in because it wasn't checked out by the caller`, serviceAccountName)), nil
+					return logical.ErrorResponse("%q can't be checked in because it wasn't checked out by the caller", serviceAccountName), nil
 				}
 				if checkOut.IsAvailable {
 					continue
