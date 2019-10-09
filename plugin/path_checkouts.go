@@ -242,7 +242,7 @@ func (b *backend) operationCheckIn(overrideCheckInEnforcement bool) framework.Op
 		disableCheckInEnforcement := overrideCheckInEnforcement || set.DisableCheckInEnforcement
 
 		// Track the service accounts we check in so we can include it in our response.
-		var toCheckIn []string
+		toCheckIn := make([]string, 0)
 
 		// Build and validate a list of service account names that we will be checking in.
 		if len(serviceAccountNames) == 0 {
