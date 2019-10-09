@@ -3,8 +3,6 @@ package plugin
 import (
 	"context"
 	"errors"
-	"time"
-
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -26,10 +24,9 @@ var (
 // CheckOut provides information for a service account that is currently
 // checked out.
 type CheckOut struct {
-	IsAvailable         bool      `json:"is_available"`
-	BorrowerEntityID    string    `json:"borrower_entity_id"`
-	BorrowerClientToken string    `json:"borrower_client_token"`
-	Due                 time.Time `json:"due"`
+	IsAvailable         bool   `json:"is_available"`
+	BorrowerEntityID    string `json:"borrower_entity_id"`
+	BorrowerClientToken string `json:"borrower_client_token"`
 }
 
 // checkOutHandler manages checkouts. It's not thread-safe and expects the caller to handle locking because

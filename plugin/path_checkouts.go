@@ -105,7 +105,7 @@ func (b *backend) operationSetCheckOut(ctx context.Context, req *logical.Request
 	// If we arrived here, it's because we never had a hit for a service account that was available.
 	return logical.RespondWithStatusCode(&logical.Response{
 		Warnings: []string{"No service accounts available for check-out."},
-	}, req, 429)
+	}, req, 400)
 }
 
 func (b *backend) secretAccessKeys() *framework.Secret {
@@ -242,7 +242,7 @@ func (b *backend) operationCheckIn(overrideCheckInEnforcement bool) framework.Op
 		disableCheckInEnforcement := overrideCheckInEnforcement || set.DisableCheckInEnforcement
 
 		// Track the service accounts we check in so we can include it in our response.
-		var toCheckIn []string
+		toCheckIn := make([]string, 0)
 
 		// Build and validate a list of service account names that we will be checking in.
 		if len(serviceAccountNames) == 0 {
@@ -271,12 +271,12 @@ func (b *backend) operationCheckIn(overrideCheckInEnforcement bool) framework.Op
 				if err != nil {
 					return nil, err
 				}
-				if checkOut.IsAvailable {
-					// Nothing further to do here.
-					continue
+				// First guard that they should be able to do anything at all.
+				if !checkOut.IsAvailable && !disableCheckInEnforcement && !checkinAuthorized(req, checkOut) {
+					return logical.ErrorResponse("%q can't be checked in because it wasn't checked out by the caller", serviceAccountName), nil
 				}
-				if !disableCheckInEnforcement && !checkinAuthorized(req, checkOut) {
-					return logical.ErrorResponse(fmt.Sprintf(`"%s" can't be checked in because it wasn't checked out by the caller`, serviceAccountName)), nil
+				if checkOut.IsAvailable {
+					continue
 				}
 				toCheckIn = append(toCheckIn, serviceAccountName)
 			}
