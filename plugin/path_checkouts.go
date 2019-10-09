@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/locksutil"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -103,6 +104,10 @@ func (b *backend) operationSetCheckOut(ctx context.Context, req *logical.Request
 	}
 
 	// If we arrived here, it's because we never had a hit for a service account that was available.
+	// In case of customer issues, we need to make this easy to see and diagnose.
+	b.Logger().Debug(fmt.Sprintf(`%q had no check-outs available`, setName))
+	metrics.IncrCounter([]string{"active directory", "check-out", "unavailable", setName}, 1)
+
 	return logical.RespondWithStatusCode(&logical.Response{
 		Warnings: []string{"No service accounts available for check-out."},
 	}, req, 429)

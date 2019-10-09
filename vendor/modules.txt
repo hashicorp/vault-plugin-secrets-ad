@@ -1,3 +1,5 @@
+# github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da
+github.com/armon/go-metrics
 # github.com/armon/go-radix v0.0.0-20180808171621-7fddfc383310
 github.com/armon/go-radix
 # github.com/go-errors/errors v1.0.1
@@ -36,8 +38,8 @@ github.com/hashicorp/go-uuid
 # github.com/hashicorp/go-version v1.1.0
 github.com/hashicorp/go-version
 # github.com/hashicorp/golang-lru v0.5.1
-github.com/hashicorp/golang-lru
 github.com/hashicorp/golang-lru/simplelru
+github.com/hashicorp/golang-lru
 # github.com/hashicorp/hcl v1.0.0
 github.com/hashicorp/hcl
 github.com/hashicorp/hcl/hcl/ast
@@ -54,6 +56,7 @@ github.com/hashicorp/vault/api
 github.com/hashicorp/vault/sdk/plugin
 github.com/hashicorp/vault/sdk/framework
 github.com/hashicorp/vault/sdk/helper/ldaputil
+github.com/hashicorp/vault/sdk/helper/locksutil
 github.com/hashicorp/vault/sdk/helper/strutil
 github.com/hashicorp/vault/sdk/logical
 github.com/hashicorp/vault/sdk/helper/consts
@@ -69,14 +72,13 @@ github.com/hashicorp/vault/sdk/helper/logging
 github.com/hashicorp/vault/sdk/helper/salt
 github.com/hashicorp/vault/sdk/version
 github.com/hashicorp/vault/sdk/helper/tlsutil
+github.com/hashicorp/vault/sdk/helper/cryptoutil
 github.com/hashicorp/vault/sdk/physical
 github.com/hashicorp/vault/sdk/physical/inmem
 github.com/hashicorp/vault/sdk/helper/compressutil
 github.com/hashicorp/vault/sdk/helper/certutil
 github.com/hashicorp/vault/sdk/helper/mlock
-github.com/hashicorp/vault/sdk/helper/locksutil
 github.com/hashicorp/vault/sdk/helper/pathmanager
-github.com/hashicorp/vault/sdk/helper/cryptoutil
 # github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d
 github.com/hashicorp/yamux
 # github.com/mitchellh/go-homedir v1.1.0
@@ -95,12 +97,12 @@ github.com/pierrec/lz4/internal/xxh32
 # github.com/ryanuber/go-glob v1.0.0
 github.com/ryanuber/go-glob
 # golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
+golang.org/x/crypto/blake2b
 golang.org/x/crypto/ed25519
 golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/cryptobyte
 golang.org/x/crypto/cryptobyte/asn1
 golang.org/x/crypto/ed25519/internal/edwards25519
-golang.org/x/crypto/blake2b
 # golang.org/x/net v0.0.0-20190620200207-3b0461eec859
 golang.org/x/net/http2
 golang.org/x/net/http/httpguts
