@@ -3,6 +3,7 @@ module github.com/hashicorp/vault-plugin-secrets-ad
 go 1.12
 
 require (
+	github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da
 	github.com/go-errors/errors v1.0.1
 	github.com/go-ldap/ldap v3.0.2+incompatible
 	github.com/hashicorp/go-hclog v0.8.0

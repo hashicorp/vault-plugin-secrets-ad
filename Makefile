@@ -19,12 +19,12 @@ dev: fmtcheck generate
 	@CGO_ENABLED=0 BUILD_TAGS='$(BUILD_TAGS)' VAULT_DEV_BUILD=1 sh -c "'$(CURDIR)/scripts/build.sh'"
 
 # testshort runs the quick unit tests and vets the code
-testshort: fmtcheck generate
+test: fmtcheck generate
 	CGO_ENABLED=0 VAULT_TOKEN= VAULT_ACC= go test -v -short -tags='$(BUILD_TAGS)' $(TEST) $(TESTARGS) -count=1 -timeout=20m -parallel=4
 
 # test runs the unit tests and vets the code
-test: fmtcheck generate
-	CGO_ENABLED=0 VAULT_TOKEN= VAULT_ACC= go test -v -tags='$(BUILD_TAGS)' $(TEST) $(TESTARGS) -count=1 -timeout=20m -parallel=4
+testrace: fmtcheck generate
+	CGO_ENABLED=1 VAULT_TOKEN= VAULT_ACC= go test -race -v -tags='$(BUILD_TAGS)' $(TEST) $(TESTARGS) -count=1 -timeout=20m -parallel=4
 
 testcompile: fmtcheck generate
 	@for pkg in $(TEST) ; do \

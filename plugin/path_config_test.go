@@ -16,7 +16,7 @@ var (
 func TestCacheReader(t *testing.T) {
 
 	// we should start with no config
-	config, err := testBackend.readConfig(ctx, storage)
+	config, err := readConfig(ctx, storage)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestCacheReader(t *testing.T) {
 	}
 
 	// now that we've updated the config, we should be able to configReadOperation it
-	config, err = testBackend.readConfig(ctx, storage)
+	config, err = readConfig(ctx, storage)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +80,7 @@ func TestCacheReader(t *testing.T) {
 	}
 
 	// now that we've deleted the config, it should be unset again
-	config, err = testBackend.readConfig(ctx, storage)
+	config, err = readConfig(ctx, storage)
 	if err != nil {
 		t.Fatal(err)
 	}
