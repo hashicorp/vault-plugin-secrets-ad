@@ -3,7 +3,7 @@ package client
 import (
 	"testing"
 
-	"github.com/go-ldap/ldap"
+	"github.com/go-ldap/ldap/v3"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/ldapifc"
 	"github.com/hashicorp/vault/sdk/helper/ldaputil"

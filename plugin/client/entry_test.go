@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-ldap/ldap"
+	"github.com/go-ldap/ldap/v3"
 )
 
 // Since `$ make test` is run with the -race flag, this will detect a race and fail if it's racy.

@@ -6,8 +6,6 @@ github.com/armon/go-radix
 github.com/go-asn1-ber/asn1-ber
 # github.com/go-errors/errors v1.0.1
 github.com/go-errors/errors
-# github.com/go-ldap/ldap v3.0.2+incompatible
-github.com/go-ldap/ldap
 # github.com/go-ldap/ldap/v3 v3.1.3
 github.com/go-ldap/ldap/v3
 # github.com/golang/protobuf v1.3.1
@@ -170,8 +168,6 @@ google.golang.org/grpc/credentials/internal
 google.golang.org/grpc/balancer/base
 google.golang.org/grpc/binarylog/grpc_binarylog_v1
 google.golang.org/grpc/internal/syscall
-# gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d
-gopkg.in/asn1-ber.v1
 # gopkg.in/square/go-jose.v2 v2.3.1
 gopkg.in/square/go-jose.v2/jwt
 gopkg.in/square/go-jose.v2
