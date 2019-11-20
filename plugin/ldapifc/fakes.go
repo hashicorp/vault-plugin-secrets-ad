@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/hashicorp/vault/sdk/helper/ldaputil"
@@ -58,6 +59,8 @@ func (f *FakeLDAPConnection) Search(searchRequest *ldap.SearchRequest) (*ldap.Se
 func (f *FakeLDAPConnection) StartTLS(config *tls.Config) error {
 	return nil
 }
+
+func (f *FakeLDAPConnection) SetTimeout(timeout time.Duration) {}
 
 func (f *FakeLDAPConnection) UnauthenticatedBind(username string) error {
 	return nil
