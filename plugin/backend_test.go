@@ -362,15 +362,7 @@ func (f *fakeSecretsClient) GetPasswordLastSet(conf *client.ADConf, serviceAccou
 	return time.Time{}, err
 }
 
-func (f *fakeSecretsClient) UpdatePassword(conf *client.ADConf, serviceAccountName string, newPassword string) error {
-	var err error
-	if f.throwErrs {
-		err = errors.New("nope")
-	}
-	return err
-}
-
-func (f *fakeSecretsClient) UpdateRootPassword(conf *client.ADConf, bindDN string, newPassword string) error {
+func (f *fakeSecretsClient) UpdatePassword(conf *client.ADConf, userField *client.Field, userIdentifier string, newPassword string) error {
 	var err error
 	if f.throwErrs {
 		err = errors.New("nope")

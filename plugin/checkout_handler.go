@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"errors"
+	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -102,7 +103,7 @@ func (h *checkOutHandler) CheckIn(ctx context.Context, storage logical.Storage, 
 	if err != nil {
 		return err
 	}
-	if err := h.client.UpdatePassword(engineConf.ADConf, serviceAccountName, newPassword); err != nil {
+	if err := h.client.UpdatePassword(engineConf.ADConf, client.FieldRegistry.UserPrincipalName, serviceAccountName, newPassword); err != nil {
 		return err
 	}
 	pwdEntry, err := logical.StorageEntryJSON(passwordStoragePrefix+serviceAccountName, newPassword)

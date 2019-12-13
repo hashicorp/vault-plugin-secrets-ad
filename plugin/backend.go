@@ -89,8 +89,14 @@ func (b *backend) Invalidate(ctx context.Context, key string) {
 type secretsClient interface {
 	Get(conf *client.ADConf, serviceAccountName string) (*client.Entry, error)
 	GetPasswordLastSet(conf *client.ADConf, serviceAccountName string) (time.Time, error)
-	UpdatePassword(conf *client.ADConf, serviceAccountName string, newPassword string) error
-	UpdateRootPassword(conf *client.ADConf, bindDN string, newPassword string) error
+
+	// UpdatePassword will update the password for the given field. For the userField, only the following
+	// values are presently allowable:
+	// 	- client.FieldRegistry.DistinguishedName
+	//		- When using, the bindDn is the proper userIdentifier
+	// 	- client.FieldRegistry.UserPrincipalName
+	//		- When using, the serviceAccount is the proper userIdentifier
+	UpdatePassword(conf *client.ADConf, userField *client.Field, userIdentifier string, newPassword string) error
 }
 
 const backendHelp = `

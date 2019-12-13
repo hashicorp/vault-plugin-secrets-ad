@@ -109,10 +109,6 @@ func (f *thisFake) GetPasswordLastSet(conf *client.ADConf, serviceAccountName st
 	return time.Date(2019, time.April, 17, 23, 10, 58, 0, time.UTC), nil
 }
 
-func (f *thisFake) UpdatePassword(conf *client.ADConf, serviceAccountName string, newPassword string) error {
-	return nil
-}
-
-func (f *thisFake) UpdateRootPassword(conf *client.ADConf, bindDN string, newPassword string) error {
+func (f *thisFake) UpdatePassword(conf *client.ADConf, userField *client.Field, userIdentifier string, newPassword string) error {
 	return nil
 }

@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
-	"github.com/hashicorp/vault/sdk/framework"
-	"github.com/hashicorp/vault/sdk/logical"
 	"math"
 	"sync/atomic"
 	"time"
+
+	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
+	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
+	"github.com/hashicorp/vault/sdk/framework"
+	"github.com/hashicorp/vault/sdk/logical"
 )
 
 func (b *backend) pathRotateCredentials() *framework.Path {
@@ -47,7 +49,13 @@ func (b *backend) pathRotateCredentialsUpdate(ctx context.Context, req *logical.
 	defer atomic.CompareAndSwapInt32(b.rotateRootLock, 1, 0)
 
 	// Update the password remotely.
-	if err := b.client.UpdateRootPassword(engineConf.ADConf, engineConf.ADConf.BindDN, newPassword); err != nil {
+	var userField *client.Field
+	if engineConf.UseUserDnRootRotation {
+		userField = client.FieldRegistry.UserPrincipalName
+	} else {
+		userField = client.FieldRegistry.DistinguishedName
+	}
+	if err := b.client.UpdatePassword(engineConf.ADConf, userField, engineConf.ADConf.BindDN, newPassword); err != nil {
 		return nil, err
 	}
 	engineConf.ADConf.BindPassword = newPassword
@@ -57,7 +65,10 @@ func (b *backend) pathRotateCredentialsUpdate(ctx context.Context, req *logical.
 		// We were unable to store the new password locally. We can't continue in this state because we won't be able
 		// to roll any passwords, including our own to get back into a state of working. So, we need to roll back to
 		// the last password we successfully got into storage.
-		if rollbackErr := b.rollBackPassword(ctx, engineConf, oldPassword); rollbackErr != nil {
+		rollBackFunc := func() error {
+			return b.client.UpdatePassword(engineConf.ADConf, userField, engineConf.ADConf.BindDN, oldPassword)
+		}
+		if rollbackErr := b.rollBackPassword(ctx, rollBackFunc); rollbackErr != nil {
 			return nil, fmt.Errorf("unable to store new password due to %s and unable to return to previous password due to %s, configure a new binddn and bindpass to restore active directory function", pwdStoringErr, rollbackErr)
 		}
 		return nil, fmt.Errorf("unable to update password due to storage err: %s", pwdStoringErr)
@@ -68,7 +79,7 @@ func (b *backend) pathRotateCredentialsUpdate(ctx context.Context, req *logical.
 
 // rollBackPassword uses naive exponential backoff to retry updating to an old password,
 // because Active Directory may still be propagating the previous password change.
-func (b *backend) rollBackPassword(ctx context.Context, engineConf *configuration, oldPassword string) error {
+func (b *backend) rollBackPassword(ctx context.Context, rollBackFunc func() error) error {
 	var err error
 	for i := 0; i < 10; i++ {
 		waitSeconds := math.Pow(float64(i), 2)
@@ -79,7 +90,7 @@ func (b *backend) rollBackPassword(ctx context.Context, engineConf *configuratio
 			// Outer environment is closing.
 			return fmt.Errorf("unable to roll back password because enclosing environment is shutting down")
 		}
-		if err = b.client.UpdateRootPassword(engineConf.ADConf, engineConf.ADConf.BindDN, oldPassword); err == nil {
+		if err = rollBackFunc(); err == nil {
 			// Success.
 			return nil
 		}

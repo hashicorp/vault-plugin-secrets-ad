@@ -8,4 +8,5 @@ type configuration struct {
 	PasswordConf          *passwordConf
 	ADConf                *client.ADConf
 	LastRotationTolerance int
+	UseUserDnRootRotation bool
 }

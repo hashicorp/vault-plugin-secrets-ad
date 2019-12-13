@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-errors/errors"
+	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -155,7 +156,7 @@ func (b *backend) generateAndReturnCreds(ctx context.Context, engineConf *config
 		return nil, err
 	}
 
-	if err := b.client.UpdatePassword(engineConf.ADConf, role.ServiceAccountName, newPassword); err != nil {
+	if err := b.client.UpdatePassword(engineConf.ADConf, client.FieldRegistry.UserPrincipalName, role.ServiceAccountName, newPassword); err != nil {
 		return nil, err
 	}
 

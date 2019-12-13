@@ -64,16 +64,21 @@ func (c *SecretsClient) GetPasswordLastSet(conf *client.ADConf, serviceAccountNa
 	return t, nil
 }
 
-func (c *SecretsClient) UpdatePassword(conf *client.ADConf, serviceAccountName string, newPassword string) error {
-	filters := map[*client.Field][]string{
-		client.FieldRegistry.UserPrincipalName: {serviceAccountName},
+func (c *SecretsClient) UpdatePassword(conf *client.ADConf, userField *client.Field, userIdentifier string, newPassword string) error {
+	allowableUserFields := []*client.Field{client.FieldRegistry.UserPrincipalName, client.FieldRegistry.DistinguishedName}
+	found := false
+	for _, allowableUserField := range allowableUserFields {
+		if userField != allowableUserField {
+			continue
+		}
+		found = true
+		break
 	}
-	return c.adClient.UpdatePassword(conf, filters, newPassword)
-}
-
-func (c *SecretsClient) UpdateRootPassword(conf *client.ADConf, bindDN string, newPassword string) error {
+	if !found {
+		return fmt.Errorf(`%q is not an allowable user field, please use one of %q`, userField, allowableUserFields)
+	}
 	filters := map[*client.Field][]string{
-		client.FieldRegistry.DistinguishedName: {bindDN},
+		userField: {userIdentifier},
 	}
 	return c.adClient.UpdatePassword(conf, filters, newPassword)
 }

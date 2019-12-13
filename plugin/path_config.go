@@ -32,7 +32,7 @@ func readConfig(ctx context.Context, storage logical.Storage) (*configuration, e
 	if entry == nil {
 		return nil, nil
 	}
-	config := &configuration{&passwordConf{}, &client.ADConf{}, 0}
+	config := &configuration{&passwordConf{}, &client.ADConf{}, 0, false}
 	if err := entry.DecodeJSON(config); err != nil {
 		return nil, err
 	}
@@ -77,6 +77,11 @@ func (b *backend) configFields() map[string]*framework.FieldSchema {
 		Description: "The number of seconds after a Vault rotation where, if Active Directory shows a later rotation, it should be considered out-of-band.",
 		Default:     5,
 	}
+	fields["use_userdn_root_rotation"] = &framework.FieldSchema{
+		Type: framework.TypeBool,
+		Description: `Defaults to false. If true, replaces the "binddn" with the "userdn" during root credential rotation. This allows root credentials
+to be located outside the subtree denoted by the configured "userdn".`,
+	}
 	return fields
 }
 
@@ -96,6 +101,7 @@ func (b *backend) configUpdateOperation(ctx context.Context, req *logical.Reques
 	length := fieldData.Get("length").(int)
 	formatter := fieldData.Get("formatter").(string)
 	lastRotationTolerance := fieldData.Get("last_rotation_tolerance").(int)
+	useUserDnRootRotation := fieldData.Get("use_userdn_root_rotation").(bool)
 
 	if pre111Val, ok := fieldData.GetOk("use_pre111_group_cn_behavior"); ok {
 		activeDirectoryConf.UsePre111GroupCNBehavior = new(bool)
@@ -131,7 +137,14 @@ func (b *backend) configUpdateOperation(ctx context.Context, req *logical.Reques
 		Formatter: formatter,
 	}
 
-	config := &configuration{passwordConf, &client.ADConf{ConfigEntry: activeDirectoryConf}, lastRotationTolerance}
+	config := &configuration{
+		PasswordConf: passwordConf,
+		ADConf: &client.ADConf{
+			ConfigEntry: activeDirectoryConf,
+		},
+		LastRotationTolerance: lastRotationTolerance,
+		UseUserDnRootRotation: useUserDnRootRotation,
+	}
 	entry, err := logical.StorageEntryJSON(configStorageKey, config)
 	if err != nil {
 		return nil, err
@@ -158,16 +171,17 @@ func (b *backend) configReadOperation(ctx context.Context, req *logical.Request,
 	// as we lean away from returning sensitive information unless it's absolutely necessary.
 	// Also, we don't return the full ADConf here because not all parameters are used by this engine.
 	configMap := map[string]interface{}{
-		"url":                     config.ADConf.Url,
-		"starttls":                config.ADConf.StartTLS,
-		"insecure_tls":            config.ADConf.InsecureTLS,
-		"certificate":             config.ADConf.Certificate,
-		"binddn":                  config.ADConf.BindDN,
-		"userdn":                  config.ADConf.UserDN,
-		"upndomain":               config.ADConf.UPNDomain,
-		"tls_min_version":         config.ADConf.TLSMinVersion,
-		"tls_max_version":         config.ADConf.TLSMaxVersion,
-		"last_rotation_tolerance": config.LastRotationTolerance,
+		"url":                      config.ADConf.Url,
+		"starttls":                 config.ADConf.StartTLS,
+		"insecure_tls":             config.ADConf.InsecureTLS,
+		"certificate":              config.ADConf.Certificate,
+		"binddn":                   config.ADConf.BindDN,
+		"userdn":                   config.ADConf.UserDN,
+		"upndomain":                config.ADConf.UPNDomain,
+		"tls_min_version":          config.ADConf.TLSMinVersion,
+		"tls_max_version":          config.ADConf.TLSMaxVersion,
+		"last_rotation_tolerance":  config.LastRotationTolerance,
+		"use_userdn_root_rotation": config.UseUserDnRootRotation,
 	}
 	if !config.ADConf.LastBindPasswordRotation.Equal(time.Time{}) {
 		configMap["last_bind_password_rotation"] = config.ADConf.LastBindPasswordRotation

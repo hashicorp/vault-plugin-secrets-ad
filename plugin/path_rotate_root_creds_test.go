@@ -25,7 +25,10 @@ func TestRollBackPassword(t *testing.T) {
 	}
 
 	// Test succeeds immediately with successful response.
-	if err := b.rollBackPassword(ctx, testConf, "testing"); err != nil {
+	rollBackFunc := func() error {
+		return b.client.UpdatePassword(testConf.ADConf, client.FieldRegistry.DistinguishedName, testConf.ADConf.BindDN, "testing")
+	}
+	if err := b.rollBackPassword(ctx, rollBackFunc); err != nil {
 		t.Fatal(err)
 	}
 
@@ -35,7 +38,7 @@ func TestRollBackPassword(t *testing.T) {
 	stopped := make(chan struct{})
 	go func() {
 		defer close(stopped)
-		b.rollBackPassword(ctx, testConf, "testing")
+		b.rollBackPassword(ctx, rollBackFunc)
 	}()
 
 	// Wait 30 seconds and then close the doneChan, which should cause rollback to stop.
@@ -84,10 +87,6 @@ func (f *badFake) GetPasswordLastSet(conf *client.ADConf, serviceAccountName str
 	return time.Time{}, errors.New("nope")
 }
 
-func (f *badFake) UpdatePassword(conf *client.ADConf, serviceAccountName string, newPassword string) error {
-	return errors.New("nope")
-}
-
-func (f *badFake) UpdateRootPassword(conf *client.ADConf, bindDN string, newPassword string) error {
+func (f *badFake) UpdatePassword(conf *client.ADConf, userField *client.Field, userIdentifier string, newPassword string) error {
 	return errors.New("nope")
 }
