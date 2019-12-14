@@ -22,7 +22,7 @@ func (c *SecretsClient) Get(conf *client.ADConf, serviceAccountName string) (*cl
 		client.FieldRegistry.UserPrincipalName: {serviceAccountName},
 	}
 
-	entries, err := c.adClient.Search(conf, filters)
+	entries, err := c.adClient.Search(conf, conf.UserDN, filters)
 	if err != nil {
 		return nil, err
 	}
@@ -68,12 +68,12 @@ func (c *SecretsClient) UpdatePassword(conf *client.ADConf, serviceAccountName s
 	filters := map[*client.Field][]string{
 		client.FieldRegistry.UserPrincipalName: {serviceAccountName},
 	}
-	return c.adClient.UpdatePassword(conf, filters, newPassword)
+	return c.adClient.UpdatePassword(conf, conf.UserDN, filters, newPassword)
 }
 
 func (c *SecretsClient) UpdateRootPassword(conf *client.ADConf, bindDN string, newPassword string) error {
 	filters := map[*client.Field][]string{
 		client.FieldRegistry.DistinguishedName: {bindDN},
 	}
-	return c.adClient.UpdatePassword(conf, filters, newPassword)
+	return c.adClient.UpdatePassword(conf, conf.BindDN, filters, newPassword)
 }

@@ -28,7 +28,7 @@ func TestSearch(t *testing.T) {
 		FieldRegistry.Surname: {"Jones"},
 	}
 
-	entries, err := client.Search(config, filters)
+	entries, err := client.Search(config, config.UserDN, filters)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func TestUpdateEntry(t *testing.T) {
 		FieldRegistry.CommonName: {"Blue", "Red"},
 	}
 
-	if err := client.UpdateEntry(config, filters, newValues); err != nil {
+	if err := client.UpdateEntry(config, config.UserDN, filters, newValues); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -132,7 +132,7 @@ func TestUpdatePassword(t *testing.T) {
 		FieldRegistry.Surname: {"Jones"},
 	}
 
-	if err := client.UpdatePassword(config, filters, testPass); err != nil {
+	if err := client.UpdatePassword(config, config.UserDN, filters, testPass); err != nil {
 		t.Fatal(err)
 	}
 }
