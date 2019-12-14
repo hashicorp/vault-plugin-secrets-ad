@@ -26,7 +26,6 @@ type Client struct {
 	ldap *ldaputil.Client
 }
 
-// TODO this used to always be the cfg.UserDN.
 func (c *Client) Search(cfg *ADConf, baseDN string, filters map[*Field][]string) ([]*Entry, error) {
 	req := &ldap.SearchRequest{
 		BaseDN:    baseDN,
