@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/go-hclog v0.9.2
 	github.com/hashicorp/go-uuid v1.0.2-0.20191001231223-f32f5fe8d6a8
 	github.com/hashicorp/vault/api v1.0.5-0.20191108162021-73e607235264
-	github.com/hashicorp/vault/sdk v0.1.14-0.20191120192942-2612924b97ab
+	github.com/hashicorp/vault/sdk v0.1.14-0.20191218003359-39455f38a869
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	golang.org/x/text v0.3.1-0.20181227161524-e6919f6577db
 )
