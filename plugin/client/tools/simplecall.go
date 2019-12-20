@@ -28,7 +28,7 @@ func main() {
 		client.FieldRegistry.GivenName: {"Sara", "Sarah"},
 	}
 
-	entries, err := c.Search(config, filters)
+	entries, err := c.Search(config, config.UserDN, filters)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
