@@ -28,7 +28,7 @@ func TestSearch(t *testing.T) {
 		FieldRegistry.Surname: {"Jones"},
 	}
 
-	entries, err := client.Search(config, filters)
+	entries, err := client.Search(config, config.UserDN, filters)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func TestUpdateEntry(t *testing.T) {
 		FieldRegistry.CommonName: {"Blue", "Red"},
 	}
 
-	if err := client.UpdateEntry(config, filters, newValues); err != nil {
+	if err := client.UpdateEntry(config, config.UserDN, filters, newValues); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -132,7 +132,49 @@ func TestUpdatePassword(t *testing.T) {
 		FieldRegistry.Surname: {"Jones"},
 	}
 
-	if err := client.UpdatePassword(config, filters, testPass); err != nil {
+	if err := client.UpdatePassword(config, config.UserDN, filters, testPass); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestUpdateRootPassword mimics the UpdateRootPassword in the SecretsClient.
+// However, this test must be located within this package because when the
+// "client" is instantiated below, the "ldapClient" is being added to an
+// unexported field.
+func TestUpdateRootPassword(t *testing.T) {
+	testPass := "hell0$catz*"
+
+	config := emptyConfig()
+	config.BindDN = "cats"
+	config.BindPassword = "dogs"
+
+	expectedRequest := testSearchRequest()
+	expectedRequest.BaseDN = config.BindDN
+	conn := &ldapifc.FakeLDAPConnection{
+		SearchRequestToExpect: expectedRequest,
+		SearchResultToReturn:  testSearchResult(),
+	}
+
+	expectedPass, err := formatPassword(testPass)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn.ModifyRequestToExpect = &ldap.ModifyRequest{
+		DN: "CN=Jim H.. Jones,OU=Vault,OU=Engineering,DC=example,DC=com",
+	}
+	conn.ModifyRequestToExpect.Replace("unicodePwd", []string{expectedPass})
+	ldapClient := &ldaputil.Client{
+		Logger: hclog.NewNullLogger(),
+		LDAP:   &ldapifc.FakeLDAPClient{conn},
+	}
+
+	client := &Client{ldapClient}
+
+	filters := map[*Field][]string{
+		FieldRegistry.Surname: {"Jones"},
+	}
+
+	if err := client.UpdatePassword(config, config.BindDN, filters, testPass); err != nil {
 		t.Fatal(err)
 	}
 }
