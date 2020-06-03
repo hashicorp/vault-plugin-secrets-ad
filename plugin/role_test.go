@@ -18,7 +18,7 @@ var (
 )
 
 func TestOnlyDefaultTTLs(t *testing.T) {
-	passwordConf := &passwordConf{
+	passwordConf := passwordConf{
 		TTL:    defaultTTLInt,
 		MaxTTL: maxTTLInt,
 		Length: defaultPasswordLength,
@@ -42,7 +42,7 @@ func TestOnlyDefaultTTLs(t *testing.T) {
 }
 
 func TestCustomOperatorTTLButDefaultRoleTTL(t *testing.T) {
-	passwordConf := &passwordConf{
+	passwordConf := passwordConf{
 		TTL:    10,
 		MaxTTL: maxTTLInt,
 		Length: defaultPasswordLength,
@@ -66,7 +66,7 @@ func TestCustomOperatorTTLButDefaultRoleTTL(t *testing.T) {
 }
 
 func TestTTLTooHigh(t *testing.T) {
-	passwordConf := &passwordConf{
+	passwordConf := passwordConf{
 		TTL:    10,
 		MaxTTL: 10,
 		Length: defaultPasswordLength,

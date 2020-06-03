@@ -14,7 +14,7 @@ import (
 
 func Test_TTLIsRespected(t *testing.T) {
 	fakeClient := &thisFake{}
-	b := newBackend(fakeClient)
+	b := newBackend(fakeClient, nil)
 	ctx := context.Background()
 	storage := &logical.InmemStorage{}
 	logger := hclog.Default()
@@ -28,7 +28,7 @@ func Test_TTLIsRespected(t *testing.T) {
 
 	// Set up the config
 	config := &configuration{
-		PasswordConf: &passwordConf{
+		PasswordConf: passwordConf{
 			/*
 				This differs from the original config posted by the user
 				but I have to do it to get a matching TTL on the role.

@@ -18,7 +18,7 @@ func setup() (context.Context, logical.Storage, string, *CheckOut) {
 		BorrowerClientToken: "client-token",
 	}
 	config := &configuration{
-		PasswordConf: &passwordConf{
+		PasswordConf: passwordConf{
 			Length: 14,
 		},
 	}
