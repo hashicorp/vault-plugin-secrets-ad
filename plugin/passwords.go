@@ -34,15 +34,22 @@ func GeneratePassword(ctx context.Context, passConf passwordConf, generator pass
 }
 
 func generateDeprecatedPassword(formatter string, totalLength int) (string, error) {
-	pwd, err := base62.Random(totalLength)
+	// Has formatter
+	if formatter != "" {
+		passLen := lengthOfPassword(formatter, totalLength)
+		pwd, err := base62.Random(passLen)
+		if err != nil {
+			return "", err
+		}
+		return strings.Replace(formatter, pwdFieldTmpl, pwd, 1), nil
+	}
+
+	// Doesn't have formatter
+	pwd, err := base62.Random(totalLength - len(passwordComplexityPrefix))
 	if err != nil {
 		return "", err
 	}
-	if formatter == "" {
-		pwd = passwordComplexityPrefix + pwd
-		return pwd[:totalLength], nil
-	}
-	return strings.Replace(formatter, pwdFieldTmpl, pwd[:lengthOfPassword(formatter, totalLength)], 1), nil
+	return passwordComplexityPrefix + pwd, nil
 }
 
 func lengthOfPassword(formatter string, totalLength int) int {
