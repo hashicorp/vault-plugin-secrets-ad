@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
-	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
@@ -24,7 +23,7 @@ var (
 				MaxLeaseTTLVal:     maxLeaseTTLVal,
 			},
 		}
-		b := newBackend(&fakeSecretsClient{})
+		b := newBackend(&fakeSecretsClient{}, conf.System)
 		b.Setup(context.Background(), conf)
 		return b
 	}()
@@ -280,8 +279,8 @@ func ReadCred(t *testing.T) {
 		t.Fatalf("expected \"tester\" but received %q", resp.Data["username"])
 	}
 	password := resp.Data["current_password"].(string)
-	if !strings.HasPrefix(password, util.PasswordComplexityPrefix) {
-		t.Fatalf("%s doesn't have the expected complexity prefix of %s", password, util.PasswordComplexityPrefix)
+	if !strings.HasPrefix(password, passwordComplexityPrefix) {
+		t.Fatalf("%s doesn't have the expected complexity prefix of %s", password, passwordComplexityPrefix)
 	}
 }
 
