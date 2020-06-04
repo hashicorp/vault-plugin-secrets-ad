@@ -40,6 +40,7 @@ func (c passwordConf) Map() map[string]interface{} {
 	}
 }
 
+// validate returns an error if the configuration is invalid/unable to process for whatever reason.
 func (c passwordConf) validate() error {
 	if c.PolicyName != "" &&
 		(c.Length != 0 || c.Formatter != "") {
