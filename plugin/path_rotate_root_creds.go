@@ -92,17 +92,6 @@ func (b *backend) rollBackPassword(ctx context.Context, engineConf *configuratio
 	return err
 }
 
-// func storePassword(ctx context.Context, req *logical.Request, engineConf *configuration) error {
-// 	entry, err := logical.StorageEntryJSON(configStorageKey, engineConf)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if err := req.Storage.Put(ctx, entry); err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
-
 const pathRotateCredentialsUpdateHelpSyn = `
 Request to rotate the root credentials.
 `
