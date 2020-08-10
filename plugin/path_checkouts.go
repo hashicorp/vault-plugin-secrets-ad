@@ -78,7 +78,7 @@ func (b *backend) operationSetCheckOut(ctx context.Context, req *logical.Request
 
 	// Check out the first service account available.
 	for _, serviceAccountName := range set.ServiceAccountNames {
-		if err := b.checkOutHandler.CheckOut(ctx, req.Storage, serviceAccountName, newCheckOut); err != nil {
+		if err := b.checkOutHandler.CheckOut(ctx, req.Storage, serviceAccountName, set.AutoDisableAccount, newCheckOut); err != nil {
 			if err == errCheckedOut {
 				continue
 			}
@@ -164,8 +164,16 @@ func (b *backend) endCheckOut(ctx context.Context, req *logical.Request, fieldDa
 	lock.Lock()
 	defer lock.Unlock()
 
+	set, err := readSet(ctx, req.Storage, setName)
+	if err != nil {
+		return nil, err
+	}
+	if set == nil {
+		return logical.ErrorResponse(fmt.Sprintf(`%q doesn't exist`, setName)), nil
+	}
+
 	serviceAccountName := req.Secret.InternalData["service_account_name"].(string)
-	if err := b.checkOutHandler.CheckIn(ctx, req.Storage, serviceAccountName); err != nil {
+	if err := b.checkOutHandler.CheckIn(ctx, req.Storage, serviceAccountName, set.AutoDisableAccount); err != nil {
 		return nil, err
 	}
 	return nil, nil
@@ -284,7 +292,7 @@ func (b *backend) operationCheckIn(overrideCheckInEnforcement bool) framework.Op
 			}
 		}
 		for _, serviceAccountName := range toCheckIn {
-			if err := b.checkOutHandler.CheckIn(ctx, req.Storage, serviceAccountName); err != nil {
+			if err := b.checkOutHandler.CheckIn(ctx, req.Storage, serviceAccountName, set.AutoDisableAccount); err != nil {
 				return nil, err
 			}
 		}

@@ -14,16 +14,17 @@ import (
 )
 
 var (
-	testCtx     = context.Background()
-	testStorage = &logical.InmemStorage{}
-	testBackend = func() *backend {
+	testCtx          = context.Background()
+	testStorage      = &logical.InmemStorage{}
+	testSecretClient = &fakeSecretsClient{}
+	testBackend      = func() *backend {
 		conf := &logical.BackendConfig{
 			System: &logical.StaticSystemView{
 				DefaultLeaseTTLVal: defaultLeaseTTLVal,
 				MaxLeaseTTLVal:     maxLeaseTTLVal,
 			},
 		}
-		b := newBackend(&fakeSecretsClient{}, conf.System)
+		b := newBackend(testSecretClient, conf.System)
 		b.Setup(context.Background(), conf)
 		return b
 	}()
@@ -337,7 +338,10 @@ Beq3QOqp2+dga36IzQybzPQ8QtotrpSJ3q82zztEvyWiJ7E=
 `
 
 type fakeSecretsClient struct {
-	throwErrs bool
+	throwErrs           bool
+	accountDisabled     bool
+	disableAccountCalls int
+	enableAccountCalls  int
 }
 
 func (f *fakeSecretsClient) Get(conf *client.ADConf, serviceAccountName string) (*client.Entry, error) {
@@ -375,4 +379,32 @@ func (f *fakeSecretsClient) UpdateRootPassword(conf *client.ADConf, bindDN strin
 		err = errors.New("nope")
 	}
 	return err
+}
+
+// Fake EnableAccount in LDAP. Increment enableAccountCall variable.
+func (f *fakeSecretsClient) EnableAccount(conf *client.ADConf, serviceAccountName string) error {
+	var err error
+	if f.throwErrs {
+		err = errors.New("nope")
+	}
+	f.enableAccountCalls++
+	return err
+}
+
+// Fake DisableAccount in LDAP. Increment disableAccountCall variable.
+func (f *fakeSecretsClient) DisableAccount(conf *client.ADConf, serviceAccountName string) error {
+	var err error
+	if f.throwErrs {
+		err = errors.New("nope")
+	}
+	f.disableAccountCalls++
+	return err
+}
+
+// Reset the flags and counters for testing
+func (f *fakeSecretsClient) Clear() {
+	f.throwErrs = false
+	f.accountDisabled = false
+	f.disableAccountCalls = 0
+	f.enableAccountCalls = 0
 }

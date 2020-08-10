@@ -1,11 +1,12 @@
 package plugin
 
 import (
+	"testing"
+	"time"
+
 	"github.com/go-errors/errors"
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
 	"github.com/hashicorp/vault/sdk/helper/ldaputil"
-	"testing"
-	"time"
 )
 
 func TestRollBackPassword(t *testing.T) {
@@ -89,5 +90,13 @@ func (f *badFake) UpdatePassword(conf *client.ADConf, serviceAccountName string,
 }
 
 func (f *badFake) UpdateRootPassword(conf *client.ADConf, bindDN string, newPassword string) error {
+	return errors.New("nope")
+}
+
+func (f *badFake) EnableAccount(conf *client.ADConf, serviceAccountName string) error {
+	return errors.New("nope")
+}
+
+func (f *badFake) DisableAccount(conf *client.ADConf, serviceAccountName string) error {
 	return errors.New("nope")
 }

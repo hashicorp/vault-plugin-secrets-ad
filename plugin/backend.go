@@ -92,6 +92,8 @@ type secretsClient interface {
 	GetPasswordLastSet(conf *client.ADConf, serviceAccountName string) (time.Time, error)
 	UpdatePassword(conf *client.ADConf, serviceAccountName string, newPassword string) error
 	UpdateRootPassword(conf *client.ADConf, bindDN string, newPassword string) error
+	EnableAccount(conf *client.ADConf, serviceAccountName string) error
+	DisableAccount(conf *client.ADConf, serviceAccountName string) error
 }
 
 const backendHelp = `
