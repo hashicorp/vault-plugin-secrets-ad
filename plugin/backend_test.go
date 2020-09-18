@@ -52,7 +52,7 @@ func TestBackend(t *testing.T) {
 
 	// Exercise root credential rotation.
 	t.Run("rotate root creds", RotateRootCreds)
-	t.Run("rotate root creds", RotateRootCredsWithPost)
+	t.Run("rotate root creds with write", RotateRootCredsWithPost)
 }
 
 func WriteConfig(t *testing.T) {
