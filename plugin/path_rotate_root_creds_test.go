@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+// Tests to check root credential rotation are found in ./backend_test.go
+
 func TestRollBackPassword(t *testing.T) {
 	if testing.Short() {
 		t.Skip()

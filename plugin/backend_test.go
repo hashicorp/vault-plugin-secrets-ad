@@ -52,6 +52,7 @@ func TestBackend(t *testing.T) {
 
 	// Exercise root credential rotation.
 	t.Run("rotate root creds", RotateRootCreds)
+	t.Run("rotate root creds with write", RotateRootCredsWithPost)
 }
 
 func WriteConfig(t *testing.T) {
@@ -287,6 +288,21 @@ func ReadCred(t *testing.T) {
 func RotateRootCreds(t *testing.T) {
 	req := &logical.Request{
 		Operation: logical.ReadOperation,
+		Path:      "rotate-root",
+		Storage:   testStorage,
+	}
+	resp, err := testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	if resp != nil {
+		t.Fatal("expected no response because Vault generally doesn't return it for posts")
+	}
+}
+
+func RotateRootCredsWithPost(t *testing.T) {
+	req := &logical.Request{
+		Operation: logical.UpdateOperation,
 		Path:      "rotate-root",
 		Storage:   testStorage,
 	}
