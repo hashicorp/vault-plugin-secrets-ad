@@ -101,29 +101,29 @@ func TestValidatePasswordConf(t *testing.T) {
 		},
 		"has policy": {
 			conf: passwordConf{
-				PolicyName: "testpolicy",
+				PasswordPolicy: "testpolicy",
 			},
 			expectErr: false,
 		},
 		"has policy name and length": {
 			conf: passwordConf{
-				PolicyName: "testpolicy",
-				Length:     20,
+				PasswordPolicy: "testpolicy",
+				Length:         20,
 			},
 			expectErr: true,
 		},
 		"has policy name and formatter": {
 			conf: passwordConf{
-				PolicyName: "testpolicy",
-				Formatter:  "foo{{PASSWORD}}",
+				PasswordPolicy: "testpolicy",
+				Formatter:      "foo{{PASSWORD}}",
 			},
 			expectErr: true,
 		},
 		"has policy name and length and formatter": {
 			conf: passwordConf{
-				PolicyName: "testpolicy",
-				Length:     20,
-				Formatter:  "foo{{PASSWORD}}",
+				PasswordPolicy: "testpolicy",
+				Length:         20,
+				Formatter:      "foo{{PASSWORD}}",
 			},
 			expectErr: true,
 		},

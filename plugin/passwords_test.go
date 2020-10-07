@@ -19,9 +19,9 @@ func TestGeneratePassword(t *testing.T) {
 	tests := map[string]testCase{
 		"missing configs": {
 			passConf: passwordConf{
-				Length:     0,
-				Formatter:  "",
-				PolicyName: "",
+				Length:         0,
+				Formatter:      "",
+				PasswordPolicy: "",
 			},
 			generator: nil,
 
@@ -30,7 +30,7 @@ func TestGeneratePassword(t *testing.T) {
 		},
 		"policy failure": {
 			passConf: passwordConf{
-				PolicyName: "testpolicy",
+				PasswordPolicy: "testpolicy",
 			},
 			generator:         makePasswordGenerator("", fmt.Errorf("test error")),
 			passwordAssertion: assertNoPassword,
@@ -38,7 +38,7 @@ func TestGeneratePassword(t *testing.T) {
 		},
 		"successful policy": {
 			passConf: passwordConf{
-				PolicyName: "testpolicy",
+				PasswordPolicy: "testpolicy",
 			},
 			generator:         makePasswordGenerator("testpassword", nil),
 			passwordAssertion: assertPassword("testpassword"),
