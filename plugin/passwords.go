@@ -16,7 +16,7 @@ var (
 )
 
 type passwordGenerator interface {
-	GeneratePasswordFromPolicy(ctx context.Context, PasswordPolicy string) (password string, err error)
+	GeneratePasswordFromPolicy(ctx context.Context, policyName string) (password string, err error)
 }
 
 // GeneratePassword from the password configuration. This will either generate based on a password policy
