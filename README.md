@@ -112,7 +112,7 @@ If you are developing this plugin and want to verify it is still
 functioning (and you haven't broken anything else), we recommend
 running the tests.
 
-To run the tests, invoke `make test`:
+To run the tests, run the following:
 
 ```sh
 $ make test
