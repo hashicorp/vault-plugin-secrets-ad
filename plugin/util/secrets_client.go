@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -9,12 +10,14 @@ import (
 )
 
 func NewSecretsClient(logger hclog.Logger) *SecretsClient {
-	return &SecretsClient{adClient: client.NewClient(logger)}
+	return &SecretsClient{adClient: client.NewClient(logger),
+		Logger: logger}
 }
 
 // SecretsClient wraps a *activeDirectory.activeDirectoryClient to expose just the common convenience methods needed by the ad secrets backend.
 type SecretsClient struct {
 	adClient *client.Client
+	Logger   hclog.Logger
 }
 
 func (c *SecretsClient) Get(conf *client.ADConf, serviceAccountName string) (*client.Entry, error) {
@@ -82,4 +85,72 @@ func (c *SecretsClient) UpdateRootPassword(conf *client.ADConf, bindDN string, n
 	// accounting team to rotate the security user's password, we'd want to search the
 	// security team.
 	return c.adClient.UpdatePassword(conf, conf.BindDN, filters, newPassword)
+}
+
+// DisableAccount if account is not already disabled by updating the UserAccountControl attribute
+func (c *SecretsClient) DisableAccount(conf *client.ADConf, serviceAccountName string) error {
+	uacFlag, err := c.getUserAccountControl(conf, serviceAccountName)
+	if err != nil {
+		return err
+	}
+	if !uacFlag.Has(client.ACCOUNTDISABLE) {
+		c.Logger.Debug(fmt.Sprintf("Account before disabled - UAC for %s, %x", serviceAccountName, uacFlag))
+		uacFlag.Add(client.ACCOUNTDISABLE)
+		return c.updateUAC(conf, serviceAccountName, uacFlag)
+	} else {
+		c.Logger.Debug(fmt.Sprintf("Account already disabled - UAC for %s, %x", serviceAccountName, uacFlag))
+		return nil
+	}
+
+}
+
+// EnableAccount if account is not already enabled by updating the UserAccountControl attribute
+func (c *SecretsClient) EnableAccount(conf *client.ADConf, serviceAccountName string) error {
+	uacFlag, err := c.getUserAccountControl(conf, serviceAccountName)
+	if err != nil {
+		return err
+	}
+	if uacFlag.Has(client.ACCOUNTDISABLE) {
+		c.Logger.Debug(fmt.Sprintf("Account before enable - UAC for %s, %x", serviceAccountName, uacFlag))
+		uacFlag.Clear(client.ACCOUNTDISABLE)
+		return c.updateUAC(conf, serviceAccountName, uacFlag)
+	} else {
+		c.Logger.Debug(fmt.Sprintf("Account already enabled - UAC for %s, %x", serviceAccountName, uacFlag))
+		return nil
+	}
+}
+
+// Update the UserAccountControl attribute
+func (c *SecretsClient) updateUAC(conf *client.ADConf, serviceAccountName string, uac client.Bits) error {
+	c.Logger.Debug(fmt.Sprintf("Account updated for %s, %x", serviceAccountName, uac))
+	uacInt := uint64(uac)
+
+	filters := map[*client.Field][]string{
+		client.FieldRegistry.UserPrincipalName: {serviceAccountName},
+	}
+	newValues := map[*client.Field][]string{
+		client.FieldRegistry.UserAccountControl: {strconv.FormatUint(uacInt, 10)},
+	}
+	return c.adClient.UpdateEntry(conf, conf.UserDN, filters, newValues)
+}
+
+// Return the UserAccountControl attribute from Active Directory
+func (c *SecretsClient) getUserAccountControl(conf *client.ADConf, serviceAccountName string) (client.Bits, error) {
+	entry, err := c.Get(conf, serviceAccountName)
+	if err != nil {
+		return client.Bits(0), err
+	}
+	values, found := entry.Get(client.FieldRegistry.UserAccountControl)
+	if !found {
+		return client.Bits(0), fmt.Errorf("%+v lacks a UserAccountControl field", entry)
+	}
+
+	if len(values) != 1 {
+		return client.Bits(0), fmt.Errorf("expected only one value for UserAccountControl, but received %s", values)
+	}
+
+	val := values[0]
+	c.Logger.Debug(fmt.Sprintf("Get UAC for %s, %s", serviceAccountName, val))
+	uac64, err := strconv.ParseUint(val, 10, 32)
+	return client.Bits(uint32(uac64)), nil
 }

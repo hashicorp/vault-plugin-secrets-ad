@@ -18,6 +18,7 @@ type librarySet struct {
 	TTL                       time.Duration `json:"ttl"`
 	MaxTTL                    time.Duration `json:"max_ttl"`
 	DisableCheckInEnforcement bool          `json:"disable_check_in_enforcement"`
+	AutoDisableAccount        bool          `json:"auto_disable_account"`
 }
 
 // Validates ensures that a set meets our code assumptions that TTLs are set in
@@ -78,6 +79,11 @@ func (b *backend) pathSets() *framework.Path {
 				Description: "In seconds, the max amount of time a check-out's renewals should last. Defaults to 24 hours.",
 				Default:     24 * 60 * 60, // 24 hours
 			},
+			"auto_disable_account": {
+				Type:        framework.TypeBool,
+				Description: "Disable the accounts on check-ins and enable them on check-outs",
+				Default:     false,
+			},
 			"disable_check_in_enforcement": {
 				Type:        framework.TypeBool,
 				Description: "Disable the default behavior of requiring that check-ins are performed by the entity that checked them out.",
@@ -127,6 +133,7 @@ func (b *backend) operationSetCreate(ctx context.Context, req *logical.Request, 
 	ttl := time.Duration(fieldData.Get("ttl").(int)) * time.Second
 	maxTTL := time.Duration(fieldData.Get("max_ttl").(int)) * time.Second
 	disableCheckInEnforcement := fieldData.Get("disable_check_in_enforcement").(bool)
+	autoDisableAccount := fieldData.Get("auto_disable_account").(bool)
 
 	if len(serviceAccountNames) == 0 {
 		return logical.ErrorResponse(`"service_account_names" must be provided`), nil
@@ -149,12 +156,13 @@ func (b *backend) operationSetCreate(ctx context.Context, req *logical.Request, 
 		TTL:                       ttl,
 		MaxTTL:                    maxTTL,
 		DisableCheckInEnforcement: disableCheckInEnforcement,
+		AutoDisableAccount:        autoDisableAccount,
 	}
 	if err := set.Validate(); err != nil {
 		return logical.ErrorResponse(err.Error()), nil
 	}
 	for _, serviceAccountName := range serviceAccountNames {
-		if err := b.checkOutHandler.CheckIn(ctx, req.Storage, serviceAccountName); err != nil {
+		if err := b.checkOutHandler.CheckIn(ctx, req.Storage, serviceAccountName, autoDisableAccount); err != nil {
 			return nil, err
 		}
 	}
@@ -194,6 +202,12 @@ func (b *backend) operationSetUpdate(ctx context.Context, req *logical.Request, 
 		disableCheckInEnforcementRaw = false
 	}
 	disableCheckInEnforcement := disableCheckInEnforcementRaw.(bool)
+
+	autoDisableAccountRaw, disableAccountSent := fieldData.GetOk("auto_disable_account")
+	if !disableAccountSent {
+		autoDisableAccountRaw = false
+	}
+	autoDisableAccount := autoDisableAccountRaw.(bool)
 
 	set, err := readSet(ctx, req.Storage, setName)
 	if err != nil {
@@ -247,13 +261,16 @@ func (b *backend) operationSetUpdate(ctx context.Context, req *logical.Request, 
 	if enforcementSent {
 		set.DisableCheckInEnforcement = disableCheckInEnforcement
 	}
+	if disableAccountSent {
+		set.AutoDisableAccount = autoDisableAccount
+	}
 	if err := set.Validate(); err != nil {
 		return logical.ErrorResponse(err.Error()), nil
 	}
 
 	// Now that we know we can take all these actions, let's take them.
 	for _, newServiceAccountName := range beingAdded {
-		if err := b.checkOutHandler.CheckIn(ctx, req.Storage, newServiceAccountName); err != nil {
+		if err := b.checkOutHandler.CheckIn(ctx, req.Storage, newServiceAccountName, autoDisableAccount); err != nil {
 			return nil, err
 		}
 	}
@@ -288,6 +305,7 @@ func (b *backend) operationSetRead(ctx context.Context, req *logical.Request, fi
 			"ttl":                          int64(set.TTL.Seconds()),
 			"max_ttl":                      int64(set.MaxTTL.Seconds()),
 			"disable_check_in_enforcement": set.DisableCheckInEnforcement,
+			"auto_disable_account":         set.AutoDisableAccount,
 		},
 	}, nil
 }

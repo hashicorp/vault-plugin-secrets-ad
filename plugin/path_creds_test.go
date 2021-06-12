@@ -116,3 +116,11 @@ func (f *thisFake) UpdatePassword(conf *client.ADConf, serviceAccountName string
 func (f *thisFake) UpdateRootPassword(conf *client.ADConf, bindDN string, newPassword string) error {
 	return nil
 }
+
+func (f *thisFake) EnableAccount(conf *client.ADConf, serviceAccountName string) error {
+	return nil
+}
+
+func (f *thisFake) DisableAccount(conf *client.ADConf, serviceAccountName string) error {
+	return nil
+}

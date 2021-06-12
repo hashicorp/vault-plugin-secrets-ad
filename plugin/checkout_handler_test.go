@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
-func setup() (context.Context, logical.Storage, string, *CheckOut) {
+func setup() (context.Context, logical.Storage, string, bool, *CheckOut) {
 	ctx := context.Background()
 	storage := &logical.InmemStorage{}
 	serviceAccountName := "becca@example.com"
@@ -22,6 +22,7 @@ func setup() (context.Context, logical.Storage, string, *CheckOut) {
 			Length: 14,
 		},
 	}
+	autoDisabled := false
 	entry, err := logical.StorageEntryJSON(configStorageKey, config)
 	if err != nil {
 		panic(err)
@@ -29,23 +30,23 @@ func setup() (context.Context, logical.Storage, string, *CheckOut) {
 	if err := storage.Put(ctx, entry); err != nil {
 		panic(err)
 	}
-	return ctx, storage, serviceAccountName, checkOut
+	return ctx, storage, serviceAccountName, autoDisabled, checkOut
 }
 
 func TestCheckOutHandlerStorageLayer(t *testing.T) {
-	ctx, storage, serviceAccountName, testCheckOut := setup()
+	ctx, storage, serviceAccountName, autoDisabled, testCheckOut := setup()
 
 	storageHandler := &checkOutHandler{
 		client: &fakeSecretsClient{},
 	}
 
 	// Service accounts must initially be checked in to the library
-	if err := storageHandler.CheckIn(ctx, storage, serviceAccountName); err != nil {
+	if err := storageHandler.CheckIn(ctx, storage, serviceAccountName, autoDisabled); err != nil {
 		t.Fatal(err)
 	}
 
 	// If we try to check something out for the first time, it should succeed.
-	if err := storageHandler.CheckOut(ctx, storage, serviceAccountName, testCheckOut); err != nil {
+	if err := storageHandler.CheckOut(ctx, storage, serviceAccountName, autoDisabled, testCheckOut); err != nil {
 		t.Fatal(err)
 	}
 
@@ -63,14 +64,14 @@ func TestCheckOutHandlerStorageLayer(t *testing.T) {
 
 	// If we try to check something out that's already checked out, we should
 	// get a CurrentlyCheckedOutErr.
-	if err := storageHandler.CheckOut(ctx, storage, serviceAccountName, testCheckOut); err == nil {
+	if err := storageHandler.CheckOut(ctx, storage, serviceAccountName, autoDisabled, testCheckOut); err == nil {
 		t.Fatal("expected err but received none")
 	} else if err != errCheckedOut {
 		t.Fatalf("expected errCheckedOut, but received %s", err)
 	}
 
 	// If we try to check something in, it should succeed.
-	if err := storageHandler.CheckIn(ctx, storage, serviceAccountName); err != nil {
+	if err := storageHandler.CheckIn(ctx, storage, serviceAccountName, autoDisabled); err != nil {
 		t.Fatal(err)
 	}
 
@@ -84,30 +85,30 @@ func TestCheckOutHandlerStorageLayer(t *testing.T) {
 	}
 
 	// If we try to check it in again, it should have the same behavior.
-	if err := storageHandler.CheckIn(ctx, storage, serviceAccountName); err != nil {
+	if err := storageHandler.CheckIn(ctx, storage, serviceAccountName, autoDisabled); err != nil {
 		t.Fatal(err)
 	}
 
 	// If we check it out again, it should succeed.
-	if err := storageHandler.CheckOut(ctx, storage, serviceAccountName, testCheckOut); err != nil {
+	if err := storageHandler.CheckOut(ctx, storage, serviceAccountName, autoDisabled, testCheckOut); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestPasswordHandlerInterfaceFulfillment(t *testing.T) {
-	ctx, storage, serviceAccountName, checkOut := setup()
+	ctx, storage, serviceAccountName, autoDisabled, checkOut := setup()
 
 	passwordHandler := &checkOutHandler{
 		client: &fakeSecretsClient{},
 	}
 
 	// We must always start managing a service account by checking it in.
-	if err := passwordHandler.CheckIn(ctx, storage, serviceAccountName); err != nil {
+	if err := passwordHandler.CheckIn(ctx, storage, serviceAccountName, autoDisabled); err != nil {
 		t.Fatal(err)
 	}
 
 	// There should be no error during check-out.
-	if err := passwordHandler.CheckOut(ctx, storage, serviceAccountName, checkOut); err != nil {
+	if err := passwordHandler.CheckOut(ctx, storage, serviceAccountName, autoDisabled, checkOut); err != nil {
 		t.Fatal(err)
 	}
 
@@ -116,7 +117,7 @@ func TestPasswordHandlerInterfaceFulfillment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := passwordHandler.CheckIn(ctx, storage, serviceAccountName); err != nil {
+	if err := passwordHandler.CheckIn(ctx, storage, serviceAccountName, autoDisabled); err != nil {
 		t.Fatal(err)
 	}
 	currPassword, err := retrievePassword(ctx, storage, serviceAccountName)
@@ -143,5 +144,55 @@ func TestPasswordHandlerInterfaceFulfillment(t *testing.T) {
 	}
 	if checkOut != nil {
 		t.Fatal("expected checkOut to be nil")
+	}
+}
+
+func TestAutoDisabledAccount(t *testing.T) {
+	ctx, storage, serviceAccountName, autoDisabled, testCheckOut := setup()
+	autoDisabled = true
+
+	fakeClient := &fakeSecretsClient{}
+
+	accountDisabledHandler := &checkOutHandler{
+		client: fakeClient,
+	}
+
+	// Initial check-in. Account should be disabled
+	if err := accountDisabledHandler.CheckIn(ctx, storage, serviceAccountName, autoDisabled); err != nil {
+		t.Fatal(err)
+	}
+	if fakeClient.disableAccountCalls != 1 {
+		t.Errorf("Disabled account has not been called (%d)", fakeClient.disableAccountCalls)
+	}
+
+	// Check the account out. Account should be enabled
+	if err := accountDisabledHandler.CheckOut(ctx, storage, serviceAccountName, autoDisabled, testCheckOut); err != nil {
+		t.Fatal(err)
+	}
+	if fakeClient.enableAccountCalls != 1 {
+		t.Error("Enable account has not been called")
+	}
+	// Then Checkin again
+	if err := accountDisabledHandler.CheckIn(ctx, storage, serviceAccountName, autoDisabled); err != nil {
+		t.Fatal(err)
+	}
+	if fakeClient.disableAccountCalls != 2 {
+		t.Error("Disabled account has not been called for the second times")
+	}
+	autoDisabled = false
+	// Then CheckOut  again, but inactivate autoDisabled feature
+	if err := accountDisabledHandler.CheckOut(ctx, storage, serviceAccountName, autoDisabled, testCheckOut); err != nil {
+		t.Fatal(err)
+	}
+	if fakeClient.enableAccountCalls != 1 {
+		t.Error("Enable account should not be called")
+	}
+
+	// Then Check in again, but inactivate autoDisabled feature
+	if err := accountDisabledHandler.CheckIn(ctx, storage, serviceAccountName, autoDisabled); err != nil {
+		t.Fatal(err)
+	}
+	if fakeClient.disableAccountCalls != 2 {
+		t.Error("Disabled account has not been called for the second times")
 	}
 }

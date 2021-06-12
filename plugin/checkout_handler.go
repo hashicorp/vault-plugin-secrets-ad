@@ -38,8 +38,8 @@ type checkOutHandler struct {
 
 // CheckOut attempts to check out a service account. If the account is unavailable, it returns
 // errCheckedOut. If the service account isn't managed by this plugin, it returns
-// errNotFound.
-func (h *checkOutHandler) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, checkOut *CheckOut) error {
+// errNotFound. If the autoDisableAccount flag is true, the service account will be enable before returning it
+func (h *checkOutHandler) CheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string, autoDisableAccount bool, checkOut *CheckOut) error {
 	if ctx == nil {
 		return errors.New("ctx must be provided")
 	}
@@ -69,18 +69,36 @@ func (h *checkOutHandler) CheckOut(ctx context.Context, storage logical.Storage,
 		return errCheckedOut
 	}
 
+	// Enable the account
+	if autoDisableAccount {
+		engineConf, err := readConfig(ctx, storage)
+		if err != nil {
+			return err
+		}
+		if engineConf == nil {
+			return errors.New("the config is currently unset")
+		}
+		if err := h.client.EnableAccount(engineConf.ADConf, serviceAccountName); err != nil {
+			return err
+		}
+	}
 	// Since it's not, store the new check-out.
 	entry, err := logical.StorageEntryJSON(checkoutStoragePrefix+serviceAccountName, checkOut)
 	if err != nil {
 		return err
 	}
-	return storage.Put(ctx, entry)
+
+	if err := storage.Put(ctx, entry); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // CheckIn attempts to check in a service account. If an error occurs, the account remains checked out
 // and can either be retried by the caller, or eventually may be checked in if it has a ttl
-// that ends.
-func (h *checkOutHandler) CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string) error {
+// that ends. If the autoDisableAccount flag is true, the account will be also disabled.
+func (h *checkOutHandler) CheckIn(ctx context.Context, storage logical.Storage, serviceAccountName string, autoDisableAccount bool) error {
 	if ctx == nil {
 		return errors.New("ctx must be provided")
 	}
@@ -106,12 +124,19 @@ func (h *checkOutHandler) CheckIn(ctx context.Context, storage logical.Storage, 
 	if err := h.client.UpdatePassword(engineConf.ADConf, serviceAccountName, newPassword); err != nil {
 		return err
 	}
+
 	pwdEntry, err := logical.StorageEntryJSON(passwordStoragePrefix+serviceAccountName, newPassword)
 	if err != nil {
 		return err
 	}
 	if err := storage.Put(ctx, pwdEntry); err != nil {
 		return err
+	}
+
+	if autoDisableAccount {
+		if err := h.client.DisableAccount(engineConf.ADConf, serviceAccountName); err != nil {
+			return err
+		}
 	}
 
 	// That ends the password-handling leg of our journey, now let's deal with the stored check-out itself.
@@ -123,7 +148,10 @@ func (h *checkOutHandler) CheckIn(ctx context.Context, storage logical.Storage, 
 	if err != nil {
 		return err
 	}
-	return storage.Put(ctx, entry)
+	if err := storage.Put(ctx, entry); err != nil {
+		return err
+	}
+	return nil
 }
 
 // LoadCheckOut returns either:

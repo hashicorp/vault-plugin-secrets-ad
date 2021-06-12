@@ -20,6 +20,8 @@ func TestCheckOuts(t *testing.T) {
 	t.Run("read set status", ReadSetStatus)
 	t.Run("write set toggle off", WriteSetToggleOff)
 	t.Run("read set toggle off", ReadSetToggleOff)
+	t.Run("write set auto disable account off", WriteSetAutoDisableAccountOff)
+	t.Run("read set auto disable account off", ReadSetAutoDisableAccountOff)
 	t.Run("write conflicting set", WriteSetWithConflictingServiceAccounts)
 	t.Run("list sets", ListSets)
 	t.Run("delete set", DeleteSet)
@@ -94,6 +96,7 @@ func TestCheckOutRaces(t *testing.T) {
 					"service_account_names":        []string{"tester1@example.com", "tester2@example.com"},
 					"ttl":                          "10h",
 					"disable_check_in_enforcement": false,
+					"auto_disable_account":         true,
 				},
 			})
 			testBackend.HandleRequest(ctx, &logical.Request{
@@ -178,6 +181,7 @@ func WriteSet(t *testing.T) {
 			"ttl":                          "10h",
 			"max_ttl":                      "11h",
 			"disable_check_in_enforcement": true,
+			"auto_disable_account":         true,
 		},
 	}
 	resp, err := testBackend.HandleRequest(ctx, req)
@@ -246,6 +250,10 @@ func ReadSet(t *testing.T) {
 	if !disableCheckInEnforcement {
 		t.Fatal("check-in enforcement should be disabled")
 	}
+	autoDisableAccount := resp.Data["auto_disable_account"].(bool)
+	if !autoDisableAccount {
+		t.Fatal("autoDisable should be enabled")
+	}
 	ttl := resp.Data["ttl"].(int64)
 	if ttl != 10*60*60 { // 10 hours
 		t.Fatal(ttl)
@@ -296,6 +304,50 @@ func ReadSetToggleOff(t *testing.T) {
 	disableCheckInEnforcement := resp.Data["disable_check_in_enforcement"].(bool)
 	if disableCheckInEnforcement {
 		t.Fatal("check-in enforcement should be enabled")
+	}
+}
+
+func WriteSetAutoDisableAccountOff(t *testing.T) {
+	req := &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      libraryPrefix + "test-set",
+		Storage:   testStorage,
+		Data: map[string]interface{}{
+			"service_account_names":        []string{"tester1@example.com", "tester2@example.com"},
+			"ttl":                          "10h",
+			"disable_check_in_enforcement": false,
+			"auto_disable_account":         false,
+		},
+	}
+	resp, err := testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	if resp != nil {
+		t.Fatalf("expected an empty response, got: %v", resp)
+	}
+}
+
+func ReadSetAutoDisableAccountOff(t *testing.T) {
+	req := &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      libraryPrefix + "test-set",
+		Storage:   testStorage,
+	}
+	resp, err := testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	if resp == nil {
+		t.Fatal("expected a response")
+	}
+	serviceAccountNames := resp.Data["service_account_names"].([]string)
+	if len(serviceAccountNames) != 2 {
+		t.Fatal("expected 2")
+	}
+	autoDisableAccount := resp.Data["auto_disable_account"].(bool)
+	if autoDisableAccount {
+		t.Fatal("autoDisable should be disabled")
 	}
 }
 
@@ -415,6 +467,8 @@ func CheckInitialStatus(t *testing.T) {
 }
 
 func PerformCheckOut(t *testing.T) {
+	testSecretClient.Clear()
+
 	req := &logical.Request{
 		Operation: logical.UpdateOperation,
 		Path:      libraryPrefix + "test-set/check-out",
@@ -451,6 +505,9 @@ func PerformCheckOut(t *testing.T) {
 	}
 	if resp.Secret.InternalData["service_account_name"].(string) == "" {
 		t.Fatal("internal service account name should not be empty")
+	}
+	if testSecretClient.enableAccountCalls != 1 {
+		t.Fatalf("Enable account method should be called once")
 	}
 }
 
@@ -489,6 +546,8 @@ func CheckUpdatedStatus(t *testing.T) {
 }
 
 func NormalCheckIn(t *testing.T) {
+	testSecretClient.Clear()
+
 	req := &logical.Request{
 		Operation: logical.UpdateOperation,
 		Path:      libraryPrefix + "test-set/check-in",
@@ -505,9 +564,15 @@ func NormalCheckIn(t *testing.T) {
 	if len(checkIns) != 1 {
 		t.Fatal("expected 1 check-in")
 	}
+
+	if testSecretClient.disableAccountCalls != 1 {
+		t.Fatalf("Disabled account method should be called once")
+	}
 }
 
 func ForceCheckIn(t *testing.T) {
+	testSecretClient.Clear()
+
 	req := &logical.Request{
 		Operation: logical.UpdateOperation,
 		Path:      libraryPrefix + "manage/test-set/check-in",
@@ -523,5 +588,9 @@ func ForceCheckIn(t *testing.T) {
 	checkIns := resp.Data["check_ins"].([]string)
 	if len(checkIns) != 1 {
 		t.Fatal("expected 1 check-in")
+	}
+
+	if testSecretClient.disableAccountCalls != 1 {
+		t.Fatalf("Disabled account method should be called once")
 	}
 }
