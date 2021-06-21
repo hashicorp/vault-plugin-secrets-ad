@@ -12,22 +12,24 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
-func (b *backend) pathRotateCredentials() *framework.Path {
+const rotateRootPath = "rotate-root"
+
+func (b *backend) pathRotateRootCredentials() *framework.Path {
 	return &framework.Path{
-		Pattern: "rotate-root",
+		Pattern: rotateRootPath,
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.CreateOperation: &framework.PathOperation{
-				Callback:                    b.pathRotateCredentialsUpdate,
+				Callback:                    b.pathRotateRootCredentialsUpdate,
 				ForwardPerformanceStandby:   true,
 				ForwardPerformanceSecondary: true,
 			},
 			logical.ReadOperation: &framework.PathOperation{
-				Callback:                    b.pathRotateCredentialsUpdate,
+				Callback:                    b.pathRotateRootCredentialsUpdate,
 				ForwardPerformanceStandby:   true,
 				ForwardPerformanceSecondary: true,
 			},
 			logical.UpdateOperation: &framework.PathOperation{
-				Callback:                    b.pathRotateCredentialsUpdate,
+				Callback:                    b.pathRotateRootCredentialsUpdate,
 				ForwardPerformanceStandby:   true,
 				ForwardPerformanceSecondary: true,
 			},
@@ -38,7 +40,7 @@ func (b *backend) pathRotateCredentials() *framework.Path {
 	}
 }
 
-func (b *backend) pathRotateCredentialsUpdate(ctx context.Context, req *logical.Request, _ *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathRotateRootCredentialsUpdate(ctx context.Context, req *logical.Request, _ *framework.FieldData) (*logical.Response, error) {
 	engineConf, err := readConfig(ctx, req.Storage)
 	if err != nil {
 		return nil, err
@@ -71,7 +73,7 @@ func (b *backend) pathRotateCredentialsUpdate(ctx context.Context, req *logical.
 		// We were unable to store the new password locally. We can't continue in this state because we won't be able
 		// to roll any passwords, including our own to get back into a state of working. So, we need to roll back to
 		// the last password we successfully got into storage.
-		if rollbackErr := b.rollBackPassword(ctx, engineConf, oldPassword); rollbackErr != nil {
+		if rollbackErr := b.rollBackRootPassword(ctx, engineConf, oldPassword); rollbackErr != nil {
 			return nil, fmt.Errorf("unable to store new password due to %s and unable to return to previous password due to %s, configure a new binddn and bindpass to restore active directory function", pwdStoringErr, rollbackErr)
 		}
 		return nil, fmt.Errorf("unable to update password due to storage err: %s", pwdStoringErr)
@@ -82,7 +84,7 @@ func (b *backend) pathRotateCredentialsUpdate(ctx context.Context, req *logical.
 
 // rollBackPassword uses naive exponential backoff to retry updating to an old password,
 // because Active Directory may still be propagating the previous password change.
-func (b *backend) rollBackPassword(ctx context.Context, engineConf *configuration, oldPassword string) error {
+func (b *backend) rollBackRootPassword(ctx context.Context, engineConf *configuration, oldPassword string) error {
 	var err error
 	for i := 0; i < 10; i++ {
 		waitSeconds := math.Pow(float64(i), 2)
@@ -102,10 +104,10 @@ func (b *backend) rollBackPassword(ctx context.Context, engineConf *configuratio
 	return err
 }
 
-const pathRotateCredentialsUpdateHelpSyn = `
+const pathRotateRootCredentialsUpdateHelpSyn = `
 Request to rotate the root credentials.
 `
 
-const pathRotateCredentialsUpdateHelpDesc = `
+const pathRotateRootCredentialsUpdateHelpDesc = `
 This path attempts to rotate the root credentials. 
 `

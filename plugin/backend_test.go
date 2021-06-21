@@ -49,6 +49,7 @@ func TestBackend(t *testing.T) {
 
 	// Exercise all cred endpoints.
 	t.Run("read cred", ReadCred)
+	t.Run("rotate role creds", RotateRolePassword)
 
 	// Exercise root credential rotation.
 	t.Run("rotate root creds", RotateRootCreds)
@@ -282,6 +283,96 @@ func ReadCred(t *testing.T) {
 	password := resp.Data["current_password"].(string)
 	if !strings.HasPrefix(password, passwordComplexityPrefix) {
 		t.Fatalf("%s doesn't have the expected complexity prefix of %s", password, passwordComplexityPrefix)
+	}
+}
+
+func RotateRolePassword(t *testing.T) {
+	role := "test_role"
+	// Create role
+	req := &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      rolePrefix + role,
+		Storage:   testStorage,
+		Data: map[string]interface{}{
+			"service_account_name": "tester@example.com",
+			"ttl":                  10,
+		},
+	}
+	resp, err := testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+
+	if resp != nil {
+		t.Fatalf("expected no response, got %v", resp)
+	}
+
+	// Read role's creds
+	req = &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      credPrefix + role,
+		Storage:   testStorage,
+	}
+	resp, err = testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+
+	// Did we get the response data we expect?
+	if len(resp.Data) != 2 {
+		t.Fatalf("expected 2 items in %s but received %d", resp.Data, len(resp.Data))
+	}
+	if resp.Data["username"] != "tester" {
+		t.Fatalf("expected \"tester\" but received %q", resp.Data["username"])
+	}
+
+	password := resp.Data["current_password"].(string)
+	if !strings.HasPrefix(password, passwordComplexityPrefix) {
+		t.Fatalf("%s doesn't have the expected complexity prefix of %s", password, passwordComplexityPrefix)
+	}
+
+	// Rotate role's creds
+	req = &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      rotateRolePath + role,
+		Storage:   testStorage,
+	}
+
+	resp, err = testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	if resp != nil {
+		t.Fatal("expected no response because Vault generally doesn't return it for posts")
+	}
+
+	// Read role's creds
+	req = &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      credPrefix + role,
+		Storage:   testStorage,
+	}
+	resp, err = testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+
+	// Did we get the response data we expect?
+	if len(resp.Data) != 3 {
+		t.Fatalf("expected 3 items in %s but received %d", resp.Data, len(resp.Data))
+	}
+	if resp.Data["username"] != "tester" {
+		t.Fatalf("expected \"tester\" but received %q", resp.Data["username"])
+	}
+
+	respLastPassword := resp.Data["last_password"].(string)
+	if password != respLastPassword {
+		t.Fatalf("Expected returned last_password to be the first password, it was not: returned: %s, should have been %s", password, respLastPassword)
+	}
+
+	newPassword := resp.Data["current_password"].(string)
+	if password == newPassword {
+		t.Fatalf("Expected passwords to change when rotated role %s, but they did not", role)
 	}
 }
 

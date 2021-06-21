@@ -162,6 +162,32 @@ func (b *backend) generateAndReturnCreds(ctx context.Context, engineConf *config
 		return nil, err
 	}
 
+	var currentPassword, lastPassword string
+	if val, ok := previousCred["current_password"].(string); ok {
+		currentPassword = val
+	}
+
+	if val, ok := previousCred["last_password"].(string); ok {
+		lastPassword = val
+	}
+
+	wal := rotateCredentialEntry{
+		CurrentPassword:    currentPassword,
+		LastPassword:       lastPassword,
+		RoleName:           roleName,
+		TTL:                role.TTL,
+		ServiceAccountName: role.ServiceAccountName,
+		LastVaultRotation:  role.LastVaultRotation,
+	}
+
+	// If we can't persist the WAL, try to revert the password in AD.
+	walID, err := framework.PutWAL(ctx, storage, rotateCredentialWAL, wal)
+	if err != nil {
+		if err := b.client.UpdatePassword(engineConf.ADConf, role.ServiceAccountName, currentPassword); err != nil {
+			return nil, err
+		}
+	}
+
 	// Time recorded is in UTC for easier user comparison to AD's last rotated time, which is set to UTC by Microsoft.
 	role.LastVaultRotation = time.Now().UTC()
 	if err := b.writeRoleToStorage(ctx, storage, roleName, role); err != nil {
@@ -173,11 +199,8 @@ func (b *backend) generateAndReturnCreds(ctx context.Context, engineConf *config
 	// Although a service account name is typically my_app@example.com,
 	// the username it uses is just my_app, or everything before the @.
 	var username string
-	fields := strings.Split(role.ServiceAccountName, "@")
-	if len(fields) > 0 {
-		username = fields[0]
-	} else {
-		return nil, fmt.Errorf("unable to infer username from service account name: %s", role.ServiceAccountName)
+	if username, err = getUsername(role.ServiceAccountName); err != nil {
+		return nil, err
 	}
 
 	cred := map[string]interface{}{
@@ -198,9 +221,27 @@ func (b *backend) generateAndReturnCreds(ctx context.Context, engineConf *config
 	}
 	b.credCache.SetDefault(roleName, cred)
 
+	// Delete the WAL entry
+	if err := framework.DeleteWAL(ctx, storage, walID); err != nil {
+		// The rotation was successful, so don't return the error.
+		// The WAL will eventually be discarded by the rollback handler.
+		b.Logger().Warn("failed to delete password rotation WAL", "error", err.Error())
+	}
+
 	return &logical.Response{
 		Data: cred,
 	}, nil
+}
+
+// getUsername extracts the username from a service account name by
+// splitting on @. For example, if vault@hashicorp.com is the service
+// account, vault is the username.
+func getUsername(serviceAccount string) (string, error) {
+	fields := strings.Split(serviceAccount, "@")
+	if len(fields) > 0 {
+		return fields[0], nil
+	}
+	return "", fmt.Errorf("unable to infer username from service account name: %s", serviceAccount)
 }
 
 const (

@@ -1,11 +1,12 @@
 package plugin
 
 import (
+	"testing"
+	"time"
+
 	"github.com/go-errors/errors"
 	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
 	"github.com/hashicorp/vault/sdk/helper/ldaputil"
-	"testing"
-	"time"
 )
 
 // Tests to check root credential rotation are found in ./backend_test.go
@@ -27,7 +28,7 @@ func TestRollBackPassword(t *testing.T) {
 	}
 
 	// Test succeeds immediately with successful response.
-	if err := b.rollBackPassword(ctx, testConf, "testing"); err != nil {
+	if err := b.rollBackRootPassword(ctx, testConf, "testing"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -37,7 +38,7 @@ func TestRollBackPassword(t *testing.T) {
 	stopped := make(chan struct{})
 	go func() {
 		defer close(stopped)
-		b.rollBackPassword(ctx, testConf, "testing")
+		b.rollBackRootPassword(ctx, testConf, "testing")
 	}()
 
 	// Wait 30 seconds and then close the doneChan, which should cause rollback to stop.
