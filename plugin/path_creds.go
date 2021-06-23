@@ -101,6 +101,7 @@ func (b *backend) credReadOperation(ctx context.Context, req *logical.Request, f
 		resp, respErr = b.generateAndReturnCreds(ctx, engineConf, req.Storage, roleName, role, cred)
 
 	case role.PasswordLastSet.After(role.LastVaultRotation.Add(time.Second * time.Duration(engineConf.LastRotationTolerance))):
+		fmt.Println("Out of band rotate")
 		b.Logger().Warn(fmt.Sprintf(
 			"Vault rotated the password at %s, but it was rotated in AD later at %s, so rotating it again so Vault will know it",
 			role.LastVaultRotation.String(), role.PasswordLastSet.String()),
@@ -169,13 +170,6 @@ func (b *backend) generateAndReturnCreds(ctx context.Context, engineConf *config
 		}
 	}
 
-	// Special case where WAL would roll forward. A new role will not have a
-	// a password until creds are read, so it's possible there is no currently
-	// known password.
-	if currentPassword == "" {
-		currentPassword = newPassword
-	}
-
 	wal := rotateCredentialEntry{
 		CurrentPassword:    currentPassword,
 		LastPassword:       lastPassword,
@@ -221,7 +215,8 @@ func (b *backend) generateAndReturnCreds(ctx context.Context, engineConf *config
 	}
 
 	// Cache and save the cred.
-	entry, err := logical.StorageEntryJSON(storageKey+"/"+roleName, cred)
+	path := fmt.Sprintf("%s/%s", storageKey, roleName)
+	entry, err := logical.StorageEntryJSON(path, cred)
 	if err != nil {
 		return nil, err
 	}

@@ -44,6 +44,22 @@ func (b *backend) handleRotateCredentialRollback(ctx context.Context, storage lo
 		return fmt.Errorf("WAL does not contain a password for service account")
 	}
 
+	// Check creds for deltas. Exit if creds and WAL are the same.
+	path := fmt.Sprintf("%s/%s", storageKey, wal.RoleName)
+	credEntry, err := storage.Get(ctx, path)
+	if err == nil && credEntry != nil {
+		cred := make(map[string]interface{})
+		err := credEntry.DecodeJSON(&cred)
+		if err == nil && cred != nil {
+			currentPassword := cred["current_password"]
+			lastPassword := cred["last_password"]
+
+			if currentPassword == wal.CurrentPassword && lastPassword == wal.LastPassword {
+				return nil
+			}
+		}
+	}
+
 	role := &backendRole{
 		ServiceAccountName: wal.ServiceAccountName,
 		TTL:                wal.TTL,
@@ -79,11 +95,14 @@ func (b *backend) handleRotateCredentialRollback(ctx context.Context, storage lo
 	cred := map[string]interface{}{
 		"username":         username,
 		"current_password": wal.CurrentPassword,
-		"last_password":    wal.LastPassword,
+	}
+
+	if wal.LastPassword != "" {
+		cred["last_password"] = wal.LastPassword
 	}
 
 	// Cache and save the cred.
-	path := fmt.Sprintf("%s/%s", storageKey, wal.RoleName)
+	path = fmt.Sprintf("%s/%s", storageKey, wal.RoleName)
 	entry, err := logical.StorageEntryJSON(path, cred)
 	if err != nil {
 		return err

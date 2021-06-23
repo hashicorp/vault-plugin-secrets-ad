@@ -50,6 +50,7 @@ func TestBackend(t *testing.T) {
 	// Exercise all cred endpoints.
 	t.Run("read cred", ReadCred)
 	t.Run("rotate role creds", RotateRolePassword)
+	t.Run("rollback role creds", RollbackRolePassword)
 
 	// Exercise root credential rotation.
 	t.Run("rotate root creds", RotateRootCreds)
@@ -373,6 +374,197 @@ func RotateRolePassword(t *testing.T) {
 	newPassword := resp.Data["current_password"].(string)
 	if password == newPassword {
 		t.Fatalf("Expected passwords to change when rotated role %s, but they did not", role)
+	}
+}
+
+func RollbackRolePassword(t *testing.T) {
+	role := "test_role_rollback"
+	// Create role
+	req := &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      rolePrefix + role,
+		Storage:   testStorage,
+		Data: map[string]interface{}{
+			"service_account_name": "tester@example.com",
+			"ttl":                  10,
+		},
+	}
+	resp, err := testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+
+	if resp != nil {
+		t.Fatalf("expected no response, got %v", resp)
+	}
+
+	// Read role's creds
+	req = &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      credPrefix + role,
+		Storage:   testStorage,
+	}
+	resp, err = testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	currentPassword := resp.Data["current_password"].(string)
+
+	// Read role for WAL building
+	req = &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      rolePrefix + "test_role",
+		Storage:   testStorage,
+	}
+	resp, err = testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+
+	wal := map[string]interface{}{
+		"CurrentPassword":    currentPassword,
+		"LastPassword":       "",
+		"RoleName":           role,
+		"TTL":                resp.Data["ttl"].(int),
+		"ServiceAccountName": resp.Data["service_account_name"].(string),
+		"LastVaultRotation":  resp.Data["last_vault_rotation"],
+	}
+
+	// Rotate role's creds
+	req = &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      rotateRolePath + role,
+		Storage:   testStorage,
+	}
+
+	resp, err = testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	if resp != nil {
+		t.Fatal("expected no response because Vault generally doesn't return it for posts")
+	}
+
+	// Rollback the creds
+	err = testBackend.handleRotateCredentialRollback(ctx, testStorage, wal)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Read role's creds
+	req = &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      credPrefix + role,
+		Storage:   testStorage,
+	}
+	resp, err = testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+
+	// Did we get the response data we expect?
+	if len(resp.Data) != 2 {
+		t.Fatalf("expected 2 items in %s but received %d", resp.Data, len(resp.Data))
+	}
+	if resp.Data["username"] != "tester" {
+		t.Fatalf("expected \"tester\" but received %q", resp.Data["username"])
+	}
+
+	newPassword := resp.Data["current_password"].(string)
+	if currentPassword != newPassword {
+		t.Fatalf("Expected passwords to be the same after rollback, they weren't: expected: %s:, got: %s", currentPassword, newPassword)
+	}
+}
+
+func DiscardWAL(t *testing.T) {
+	role := "test_role_discard"
+	// Create role
+	req := &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      rolePrefix + role,
+		Storage:   testStorage,
+		Data: map[string]interface{}{
+			"service_account_name": "tester@example.com",
+			"ttl":                  10,
+		},
+	}
+	resp, err := testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+
+	if resp != nil {
+		t.Fatalf("expected no response, got %v", resp)
+	}
+
+	// Read role's creds
+	req = &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      credPrefix + role,
+		Storage:   testStorage,
+	}
+	resp, err = testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	currentPassword := resp.Data["current_password"].(string)
+
+	// Read role for WAL building
+	req = &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      rolePrefix + "test_role",
+		Storage:   testStorage,
+	}
+	resp, err = testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+
+	wal := map[string]interface{}{
+		"CurrentPassword":    currentPassword,
+		"LastPassword":       "",
+		"RoleName":           role,
+		"TTL":                resp.Data["ttl"].(int),
+		"ServiceAccountName": resp.Data["service_account_name"].(string),
+		"LastVaultRotation":  resp.Data["last_vault_rotation"],
+	}
+
+	resp, err = testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	if resp != nil {
+		t.Fatal("expected no response because Vault generally doesn't return it for posts")
+	}
+
+	// Rollback the creds
+	err = testBackend.handleRotateCredentialRollback(ctx, testStorage, wal)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Read role's creds
+	req = &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      credPrefix + role,
+		Storage:   testStorage,
+	}
+	resp, err = testBackend.HandleRequest(ctx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+
+	// Did we get the response data we expect?
+	if len(resp.Data) != 2 {
+		t.Fatalf("expected 2 items in %s but received %d", resp.Data, len(resp.Data))
+	}
+	if resp.Data["username"] != "tester" {
+		t.Fatalf("expected \"tester\" but received %q", resp.Data["username"])
+	}
+
+	newPassword := resp.Data["current_password"].(string)
+	if currentPassword != newPassword {
+		t.Fatalf("Expected passwords to be the same after rollback, they weren't: expected: %s:, got: %s", currentPassword, newPassword)
 	}
 }
 
