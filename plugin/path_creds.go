@@ -158,17 +158,22 @@ func (b *backend) generateAndReturnCreds(ctx context.Context, engineConf *config
 		return nil, err
 	}
 
-	if err := b.client.UpdatePassword(engineConf.ADConf, role.ServiceAccountName, newPassword); err != nil {
-		return nil, err
-	}
-
 	var currentPassword, lastPassword string
-	if val, ok := previousCred["current_password"].(string); ok {
-		currentPassword = val
+	if previousCred != nil {
+		if val, ok := previousCred["current_password"].(string); ok {
+			currentPassword = val
+		}
+
+		if val, ok := previousCred["last_password"].(string); ok {
+			lastPassword = val
+		}
 	}
 
-	if val, ok := previousCred["last_password"].(string); ok {
-		lastPassword = val
+	// Special case where WAL would roll forward. A new role will not have a
+	// a password until creds are read, so it's possible there is no currently
+	// known password.
+	if currentPassword == "" {
+		currentPassword = newPassword
 	}
 
 	wal := rotateCredentialEntry{
@@ -180,12 +185,15 @@ func (b *backend) generateAndReturnCreds(ctx context.Context, engineConf *config
 		LastVaultRotation:  role.LastVaultRotation,
 	}
 
-	// If we can't persist the WAL, try to revert the password in AD.
+	// Bail if we can't persist the WAL
 	walID, err := framework.PutWAL(ctx, storage, rotateCredentialWAL, wal)
 	if err != nil {
-		if err := b.client.UpdatePassword(engineConf.ADConf, role.ServiceAccountName, currentPassword); err != nil {
-			return nil, err
-		}
+		return nil, fmt.Errorf("could not persist WAL before rotation: %s", err)
+	}
+
+	err = b.client.UpdatePassword(engineConf.ADConf, role.ServiceAccountName, newPassword)
+	if err != nil {
+		return nil, err
 	}
 
 	// Time recorded is in UTC for easier user comparison to AD's last rotated time, which is set to UTC by Microsoft.
@@ -207,7 +215,8 @@ func (b *backend) generateAndReturnCreds(ctx context.Context, engineConf *config
 		"username":         username,
 		"current_password": newPassword,
 	}
-	if previousCred["current_password"] != nil {
+
+	if previousCred != nil && previousCred["current_password"] != nil {
 		cred["last_password"] = previousCred["current_password"]
 	}
 

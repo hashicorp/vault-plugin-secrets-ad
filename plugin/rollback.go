@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -13,7 +14,7 @@ const (
 	rotateCredentialWAL = "rotateCredentialWAL"
 )
 
-// rotateCredentialWAL is used to store information in a WAL that can retry a
+// rotateCredentialEntry is used to store information in a WAL that can retry a
 // credential rotation in the event of partial failure.
 type rotateCredentialEntry struct {
 	LastVaultRotation  time.Time `json:"last_vault_rotation"`
@@ -22,7 +23,6 @@ type rotateCredentialEntry struct {
 	RoleName           string    `json:"name"`
 	ServiceAccountName string    `json:"service_account_name"`
 	TTL                int       `json:"ttl"`
-	walID              string
 }
 
 func (b *backend) walRollback(ctx context.Context, req *logical.Request, kind string, data interface{}) error {
@@ -40,6 +40,10 @@ func (b *backend) handleRotateCredentialRollback(ctx context.Context, storage lo
 		return err
 	}
 
+	if wal.CurrentPassword == "" {
+		return fmt.Errorf("WAL does not contain a password for service account")
+	}
+
 	role := &backendRole{
 		ServiceAccountName: wal.ServiceAccountName,
 		TTL:                wal.TTL,
@@ -47,6 +51,21 @@ func (b *backend) handleRotateCredentialRollback(ctx context.Context, storage lo
 	}
 
 	if err := b.writeRoleToStorage(ctx, storage, wal.RoleName, role); err != nil {
+		return err
+	}
+
+	// Cache the full role to minimize Vault storage calls.
+	b.roleCache.SetDefault(wal.RoleName, role)
+
+	conf, err := readConfig(ctx, storage)
+	if err != nil {
+		return err
+	}
+	if conf == nil {
+		return errors.New("the config is currently unset")
+	}
+
+	if err := b.client.UpdatePassword(conf.ADConf, role.ServiceAccountName, wal.CurrentPassword); err != nil {
 		return err
 	}
 
@@ -64,12 +83,16 @@ func (b *backend) handleRotateCredentialRollback(ctx context.Context, storage lo
 	}
 
 	// Cache and save the cred.
-	entry, err := logical.StorageEntryJSON(storageKey+"/"+wal.RoleName, cred)
+	path := fmt.Sprintf("%s/%s", storageKey, wal.RoleName)
+	entry, err := logical.StorageEntryJSON(path, cred)
 	if err != nil {
 		return err
 	}
 	if err := storage.Put(ctx, entry); err != nil {
 		return err
 	}
+
+	b.credCache.SetDefault(wal.RoleName, cred)
+
 	return nil
 }
