@@ -41,7 +41,8 @@ func (b *backend) handleRotateCredentialRollback(ctx context.Context, storage lo
 	}
 
 	if wal.CurrentPassword == "" {
-		return fmt.Errorf("WAL does not contain a password for service account")
+		b.Logger().Warn("WAL does not contain a password for service account")
+		return nil
 	}
 
 	// Check creds for deltas. Exit if creds and WAL are the same.
