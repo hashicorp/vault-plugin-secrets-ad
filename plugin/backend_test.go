@@ -51,6 +51,7 @@ func TestBackend(t *testing.T) {
 	t.Run("read cred", ReadCred)
 	t.Run("rotate role creds", RotateRolePassword)
 	t.Run("rollback role creds", RollbackRolePassword)
+	t.Run("discard WAL", DiscardWAL)
 
 	// Exercise root credential rotation.
 	t.Run("rotate root creds", RotateRootCreds)
@@ -527,14 +528,6 @@ func DiscardWAL(t *testing.T) {
 		"TTL":                resp.Data["ttl"].(int),
 		"ServiceAccountName": resp.Data["service_account_name"].(string),
 		"LastVaultRotation":  resp.Data["last_vault_rotation"],
-	}
-
-	resp, err = testBackend.HandleRequest(ctx, req)
-	if err != nil || (resp != nil && resp.IsError()) {
-		t.Fatal(err)
-	}
-	if resp != nil {
-		t.Fatal("expected no response because Vault generally doesn't return it for posts")
 	}
 
 	// Rollback the creds
