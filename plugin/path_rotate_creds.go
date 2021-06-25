@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -61,11 +60,11 @@ func (b *backend) pathRotateCredentialsUpdate(ctx context.Context, req *logical.
 	if err != nil {
 		return nil, err
 	}
+
 	if role == nil {
-		return nil, nil
+		return nil, fmt.Errorf("role %s does not exist", roleName)
 	}
 
-	var unset time.Time
 	if !role.LastVaultRotation.IsZero() {
 		credIfc, found := b.credCache.Get(roleName)
 
@@ -78,16 +77,18 @@ func (b *backend) pathRotateCredentialsUpdate(ctx context.Context, req *logical.
 			if err != nil {
 				return nil, err
 			}
+
+			// If the creds aren't in storage, but roles are and we've created creds before,
+			// this is an unexpected state and something has gone wrong.
+			// Let's be explicit and error about this.
 			if entry == nil {
-				// If the creds aren't in storage, but roles are and we've created creds before,
-				// this is an unexpected state and something has gone wrong.
-				// Let's be explicit and error about this.
-				return nil, fmt.Errorf("should have the creds for %+v but they're not found", role)
+				b.Logger().Warn("should have the creds for %+v but they're not found", role)
+			} else {
+				if err := entry.DecodeJSON(&cred); err != nil {
+					return nil, err
+				}
+				b.credCache.SetDefault(roleName, cred)
 			}
-			if err := entry.DecodeJSON(&cred); err != nil {
-				return nil, err
-			}
-			b.credCache.SetDefault(roleName, cred)
 		}
 	}
 

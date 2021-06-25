@@ -93,6 +93,9 @@ func (b *backend) handleRotateCredentialRollback(ctx context.Context, storage lo
 		return err
 	}
 
+	b.credLock.Lock()
+	defer b.credLock.Unlock()
+
 	cred := map[string]interface{}{
 		"username":         username,
 		"current_password": wal.CurrentPassword,
