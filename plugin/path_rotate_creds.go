@@ -66,7 +66,7 @@ func (b *backend) pathRotateCredentialsUpdate(ctx context.Context, req *logical.
 	}
 
 	var unset time.Time
-	if role.LastVaultRotation != unset {
+	if !role.LastVaultRotation.IsZero() {
 		credIfc, found := b.credCache.Get(roleName)
 
 		if found {
