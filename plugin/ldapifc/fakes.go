@@ -30,6 +30,14 @@ type FakeLDAPConnection struct {
 	SearchResultToReturn  *ldap.SearchResult
 }
 
+func (f *FakeLDAPConnection) Add(addRequest *ldap.AddRequest) error {
+	return nil
+}
+
+func (f *FakeLDAPConnection) Del(delRequest *ldap.DelRequest) error {
+	return nil
+}
+
 func (f *FakeLDAPConnection) Bind(username, password string) error {
 	return nil
 }
