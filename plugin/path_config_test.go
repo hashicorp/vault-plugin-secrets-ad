@@ -2,6 +2,8 @@ package plugin
 
 import (
 	"context"
+	"github.com/mitchellh/mapstructure"
+	"github.com/stretchr/testify/assert"
 	"testing"
 
 	"github.com/hashicorp/vault/sdk/framework"
@@ -88,3 +90,102 @@ func TestCacheReader(t *testing.T) {
 		t.Fatal("config should be nil")
 	}
 }
+
+func TestConfig_PasswordLength(t *testing.T) {
+
+	// we should start with no config
+	config, err := readConfig(ctx, storage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config != nil {
+		t.Fatal("config should be nil")
+	}
+
+	req := &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      configPath,
+		Storage:   storage,
+	}
+
+	tests := []struct {
+		name          string
+		rawFieldData map[string]interface{}
+		wantErr bool
+	}{
+		{
+			"length provided",
+			map[string]interface{}{
+				"length": 32,
+			},
+			false,
+
+		},
+		{
+			"password policy provided",
+			map[string]interface{}{
+				"password_policy": "foo",
+			},
+			false,
+		},
+		{
+			"no length or password policy provided",
+			nil,
+			false,
+		},
+		{
+			"both length and password policy provided",
+			map[string]interface{}{
+				"password_policy": "foo",
+				"length": 32,
+			},
+			true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// submit a minimal config so we can check that we're using safe defaults
+			fieldData := &framework.FieldData{
+				Schema: testBackend.pathConfig().Fields,
+				Raw: map[string]interface{}{
+					"binddn":   "tester",
+					"password": "pa$$w0rd",
+					"urls":     "ldap://138.91.247.105",
+					"userdn":   "example,com",
+				},
+			}
+
+			for k, v := range tt.rawFieldData {
+				fieldData.Raw[k] = v
+			}
+
+			_, err = testBackend.configUpdateOperation(ctx, req, fieldData)
+			assert.Equal(t, tt.wantErr, err != nil)
+
+			if tt.wantErr && err != nil {
+				return
+			}
+
+			config, err := readConfig(ctx, storage)
+			assert.NoError(t, err)
+
+			var actual map[string]interface{}
+
+			cfg := &mapstructure.DecoderConfig{
+				Result:   &actual,
+				TagName:  "json",
+			}
+			decoder, err := mapstructure.NewDecoder(cfg)
+			assert.NoError(t, err)
+			err = decoder.Decode(config.PasswordConf)
+			assert.NoError(t, err)
+
+			for k, v := range tt.rawFieldData{
+				assert.Contains(t, actual, k)
+				assert.Equal(t, actual[k], v)
+			}
+		})
+	}
+}
+
