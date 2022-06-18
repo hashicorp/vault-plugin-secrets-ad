@@ -109,9 +109,9 @@ func TestConfig_PasswordLength(t *testing.T) {
 	}
 
 	tests := []struct {
-		name          string
+		name         string
 		rawFieldData map[string]interface{}
-		wantErr bool
+		wantErr      bool
 	}{
 		{
 			"length provided",
@@ -119,7 +119,6 @@ func TestConfig_PasswordLength(t *testing.T) {
 				"length": 32,
 			},
 			false,
-
 		},
 		{
 			"password policy provided",
@@ -137,7 +136,7 @@ func TestConfig_PasswordLength(t *testing.T) {
 			"both length and password policy provided",
 			map[string]interface{}{
 				"password_policy": "foo",
-				"length": 32,
+				"length":          32,
 			},
 			true,
 		},
@@ -173,19 +172,18 @@ func TestConfig_PasswordLength(t *testing.T) {
 			var actual map[string]interface{}
 
 			cfg := &mapstructure.DecoderConfig{
-				Result:   &actual,
-				TagName:  "json",
+				Result:  &actual,
+				TagName: "json",
 			}
 			decoder, err := mapstructure.NewDecoder(cfg)
 			assert.NoError(t, err)
 			err = decoder.Decode(config.PasswordConf)
 			assert.NoError(t, err)
 
-			for k, v := range tt.rawFieldData{
+			for k, v := range tt.rawFieldData {
 				assert.Contains(t, actual, k)
 				assert.Equal(t, actual[k], v)
 			}
 		})
 	}
 }
-
