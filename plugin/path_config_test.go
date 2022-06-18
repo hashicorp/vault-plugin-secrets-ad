@@ -144,7 +144,7 @@ func TestConfig_PasswordLength(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// submit a minimal config so we can check that we're using safe defaults
+			// Start common config fields and append what we need to test against
 			fieldData := &framework.FieldData{
 				Schema: testBackend.pathConfig().Fields,
 				Raw: map[string]interface{}{
