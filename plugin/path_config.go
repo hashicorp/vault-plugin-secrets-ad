@@ -119,7 +119,7 @@ func (b *backend) configUpdateOperation(ctx context.Context, req *logical.Reques
 	var length int
 	if lengthRaw, ok := fieldData.GetOk("length"); ok {
 		length = lengthRaw.(int)
-	} else if !ok && passwordPolicy ==  "" {
+	} else if !ok && passwordPolicy == "" {
 		// If neither the length nor a password policy was provided, fall back
 		// to the length's field data default value.
 		length = fieldData.Get("length").(int)
