@@ -14,5 +14,6 @@ require (
 	github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d // indirect
 	github.com/mitchellh/mapstructure v1.4.2
 	github.com/patrickmn/go-cache v2.1.0+incompatible
+	github.com/stretchr/testify v1.7.0
 	golang.org/x/text v0.3.7
 )
