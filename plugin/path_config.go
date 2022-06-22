@@ -114,9 +114,18 @@ func (b *backend) configUpdateOperation(ctx context.Context, req *logical.Reques
 	maxTTL := fieldData.Get("max_ttl").(int)
 	lastRotationTolerance := fieldData.Get("last_rotation_tolerance").(int)
 
-	length := fieldData.Get("length").(int)
-	formatter := fieldData.Get("formatter").(string)
 	passwordPolicy := fieldData.Get("password_policy").(string)
+
+	var length int
+	if lengthRaw, ok := fieldData.GetOk("length"); ok {
+		length = lengthRaw.(int)
+	} else if passwordPolicy == "" {
+		// If neither the length nor a password policy was provided, fall back
+		// to the length's field data default value.
+		length = fieldData.Get("length").(int)
+	}
+
+	formatter := fieldData.Get("formatter").(string)
 
 	if pre111Val, ok := fieldData.GetOk("use_pre111_group_cn_behavior"); ok {
 		activeDirectoryConf.UsePre111GroupCNBehavior = new(bool)
