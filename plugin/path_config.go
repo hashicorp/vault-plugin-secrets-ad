@@ -100,11 +100,29 @@ func (b *backend) configFields() map[string]*framework.FieldSchema {
 }
 
 func (b *backend) configUpdateOperation(ctx context.Context, req *logical.Request, fieldData *framework.FieldData) (*logical.Response, error) {
-	// Build and validate the ldap conf.
-	activeDirectoryConf, err := ldaputil.NewConfigEntry(nil, fieldData)
+
+	conf, err := readConfig(ctx, req.Storage)
 	if err != nil {
 		return nil, err
 	}
+
+	if conf == nil {
+		conf = new(configuration)
+		conf.ADConf = new(client.ADConf)
+	}
+
+	// Use the existing ldap client config if it is set
+	var existing *ldaputil.ConfigEntry
+	if conf.ADConf != nil && conf.ADConf.ConfigEntry != nil {
+		existing = conf.ADConf.ConfigEntry
+	}
+
+	// Build and validate the ldap conf.
+	activeDirectoryConf, err := ldaputil.NewConfigEntry(existing, fieldData)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := activeDirectoryConf.Validate(); err != nil {
 		return nil, err
 	}
