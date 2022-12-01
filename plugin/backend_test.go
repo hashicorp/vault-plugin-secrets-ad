@@ -34,6 +34,7 @@ func TestBackend(t *testing.T) {
 	t.Run("write config", WriteConfig)
 	t.Run("read config", ReadConfig)
 	t.Run("delete config", DeleteConfig)
+	t.Run("update config", UpdateConfig)
 
 	// Plant a config for further testing.
 	t.Run("plant config", PlantConfig)
@@ -74,6 +75,46 @@ func WriteConfig(t *testing.T) {
 		},
 	}
 	resp, err := testBackend.HandleRequest(testCtx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	if resp != nil {
+		t.Fatal("expected no response because Vault generally doesn't return it for posts")
+	}
+}
+
+func UpdateConfig(t *testing.T) {
+	req := &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      configPath,
+		Storage:   testStorage,
+		Data: map[string]interface{}{
+			"binddn":                  "tester",
+			"password":                "pa$$w0rd",
+			"url":                     "ldap://138.91.247.105",
+			"certificate":             validCertificate,
+			"userdn":                  "dc=example,dc=com",
+			"formatter":               "mycustom{{PASSWORD}}",
+			"last_rotation_tolerance": 10,
+		},
+	}
+	resp, err := testBackend.HandleRequest(testCtx, req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatal(err)
+	}
+	if resp != nil {
+		t.Fatal("expected no response because Vault generally doesn't return it for posts")
+	}
+
+	req = &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      configPath,
+		Storage:   testStorage,
+		Data: map[string]interface{}{
+			"certificate": validCertificate,
+		},
+	}
+	resp, err = testBackend.HandleRequest(testCtx, req)
 	if err != nil || (resp != nil && resp.IsError()) {
 		t.Fatal(err)
 	}
