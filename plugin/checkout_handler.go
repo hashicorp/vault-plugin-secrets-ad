@@ -127,8 +127,8 @@ func (h *checkOutHandler) CheckIn(ctx context.Context, storage logical.Storage, 
 }
 
 // LoadCheckOut returns either:
-//  - A *CheckOut and nil error if the serviceAccountName is currently managed by this engine.
-//  - A nil *Checkout and errNotFound if the serviceAccountName is not currently managed by this engine.
+//   - A *CheckOut and nil error if the serviceAccountName is currently managed by this engine.
+//   - A nil *Checkout and errNotFound if the serviceAccountName is not currently managed by this engine.
 func (h *checkOutHandler) LoadCheckOut(ctx context.Context, storage logical.Storage, serviceAccountName string) (*CheckOut, error) {
 	if ctx == nil {
 		return nil, errors.New("ctx must be provided")
@@ -174,9 +174,9 @@ func (h *checkOutHandler) Delete(ctx context.Context, storage logical.Storage, s
 
 // retrievePassword is a utility function for grabbing a service account's password from storage.
 // retrievePassword will return:
-//  - "password", nil if it was successfully able to retrieve the password.
-//  - errNotFound if there's no password presently.
-//  - Some other err if it was unable to complete successfully.
+//   - "password", nil if it was successfully able to retrieve the password.
+//   - errNotFound if there's no password presently.
+//   - Some other err if it was unable to complete successfully.
 func retrievePassword(ctx context.Context, storage logical.Storage, serviceAccountName string) (string, error) {
 	entry, err := storage.Get(ctx, passwordStoragePrefix+serviceAccountName)
 	if err != nil {
