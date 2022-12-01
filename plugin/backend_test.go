@@ -92,7 +92,6 @@ func UpdateConfig(t *testing.T) {
 			"binddn":                  "tester",
 			"password":                "pa$$w0rd",
 			"url":                     "ldap://138.91.247.105",
-			"certificate":             validCertificate,
 			"userdn":                  "dc=example,dc=com",
 			"formatter":               "mycustom{{PASSWORD}}",
 			"last_rotation_tolerance": 10,
