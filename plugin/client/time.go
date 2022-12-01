@@ -27,11 +27,11 @@ func ParseTicks(ticks string) (time.Time, error) {
 // TicksToTime converts an ActiveDirectory time in ticks to a time.
 // This algorithm is summarized as:
 //
-// 		Many dates are saved in Active Directory as Large Integer values.
-// 		These attributes represent dates as the number of 100-nanosecond intervals since 12:00 AM January 1, 1601.
-//		100-nanosecond intervals, equal to 0.0000001 seconds, are also called ticks.
-//		Dates in Active Directory are always saved in Coordinated Universal Time, or UTC.
-//		More: https://social.technet.microsoft.com/wiki/contents/articles/31135.active-directory-large-integer-attributes.aspx
+//	Many dates are saved in Active Directory as Large Integer values.
+//	These attributes represent dates as the number of 100-nanosecond intervals since 12:00 AM January 1, 1601.
+//	100-nanosecond intervals, equal to 0.0000001 seconds, are also called ticks.
+//	Dates in Active Directory are always saved in Coordinated Universal Time, or UTC.
+//	More: https://social.technet.microsoft.com/wiki/contents/articles/31135.active-directory-large-integer-attributes.aspx
 //
 // If we directly follow the above algorithm we encounter time.Duration limits of 290 years and int overflow issues.
 // Thus below, we carefully sidestep those.

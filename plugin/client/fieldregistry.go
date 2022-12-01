@@ -9,14 +9,13 @@ import (
 //
 // Example: Accessing constants
 //
-//   FieldRegistry.AccountExpires
-//   FieldRegistry.BadPasswordCount
+//	FieldRegistry.AccountExpires
+//	FieldRegistry.BadPasswordCount
 //
 // Example: Utility methods
 //
-//   FieldRegistry.List()
-//   FieldRegistry.Parse("givenName")
-//
+//	FieldRegistry.List()
+//	FieldRegistry.Parse("givenName")
 var FieldRegistry = newFieldRegistry()
 
 // newFieldRegistry iterates through all the fields in the registry,
