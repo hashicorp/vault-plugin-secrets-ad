@@ -18,11 +18,6 @@ func (b *backend) pathRotateRootCredentials() *framework.Path {
 	return &framework.Path{
 		Pattern: rotateRootPath,
 		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.CreateOperation: &framework.PathOperation{
-				Callback:                    b.pathRotateRootCredentialsUpdate,
-				ForwardPerformanceStandby:   true,
-				ForwardPerformanceSecondary: true,
-			},
 			logical.ReadOperation: &framework.PathOperation{
 				Callback:                    b.pathRotateRootCredentialsUpdate,
 				ForwardPerformanceStandby:   true,
