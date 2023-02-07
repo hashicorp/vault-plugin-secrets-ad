@@ -1,6 +1,12 @@
-## Unreleased
+## v0.15.0
 
-* Add changes here
+* Plugin release milestone
+
+## v0.14.1
+
+### BUG FIXES:
+
+* Fix bug where updates to config would fail is password isn't provided
 
 ## v0.14.0
 
