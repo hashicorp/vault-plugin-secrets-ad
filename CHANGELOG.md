@@ -6,7 +6,7 @@
 
 ### BUG FIXES:
 
-* Fix bug where updates to config would fail if password isn't provided
+* Fix bug where updates to config would fail if password isn't provided [GH-91](https://github.com/hashicorp/vault-plugin-secrets-ad/pull/91)
 
 ## v0.14.0
 
