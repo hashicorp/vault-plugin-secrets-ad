@@ -6,7 +6,7 @@
 
 ### BUG FIXES:
 
-* Fix bug where updates to config would fail is password isn't provided
+* Fix bug where updates to config would fail if password isn't provided
 
 ## v0.14.0
 
