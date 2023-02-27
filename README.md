@@ -67,9 +67,7 @@ will be specified as the [`plugin_directory`](https://www.vaultproject.io/docs/c
 in the Vault config used to start the server.
 
 ```json
-...
 plugin_directory = "path/to/plugin/directory"
-...
 ```
 
 Start a Vault server with this config file:
