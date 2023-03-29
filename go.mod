@@ -1,6 +1,6 @@
 module github.com/hashicorp/vault-plugin-secrets-ad
 
-go 1.19
+go 1.20
 
 require (
 	github.com/armon/go-metrics v0.4.1
