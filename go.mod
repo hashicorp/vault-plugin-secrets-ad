@@ -3,10 +3,10 @@ module github.com/hashicorp/vault-plugin-secrets-ad
 go 1.20
 
 require (
-	github.com/armon/go-metrics v0.4.1
 	github.com/go-errors/errors v1.4.2
 	github.com/go-ldap/ldap/v3 v3.4.4
 	github.com/hashicorp/go-hclog v1.5.0
+	github.com/hashicorp/go-metrics v0.5.1
 	github.com/hashicorp/go-secure-stdlib/base62 v0.1.2
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2
 	github.com/hashicorp/vault/api v1.9.1
@@ -19,6 +19,7 @@ require (
 
 require (
 	github.com/Azure/go-ntlmssp v0.0.0-20220621081337-cb9428e4ac1e // indirect
+	github.com/armon/go-metrics v0.3.9 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/cenkalti/backoff/v3 v3.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
