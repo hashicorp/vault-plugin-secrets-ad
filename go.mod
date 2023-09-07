@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/go-errors/errors v1.5.0
-	github.com/go-ldap/ldap/v3 v3.4.5
+	github.com/go-ldap/ldap/v3 v3.4.4
 	github.com/hashicorp/go-hclog v1.5.0
 	github.com/hashicorp/go-metrics v0.5.1
 	github.com/hashicorp/go-secure-stdlib/base62 v0.1.2
