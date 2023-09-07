@@ -1,5 +1,15 @@
 ## Unreleased
 
+## v0.16.1
+
+### IMPROVEMENTS:
+* Updated dependencies:
+  * `github.com/go-errors/errors` v1.4.2 -> v1.5.0
+  * `github.com/hashicorp/vault/api` v1.9.1 -> v1.10.0
+  * `github.com/hashicorp/vault/sdk` v0.9.0 -> v0.10.0
+  * `github.com/stretchr/testify` v1.8.2 -> v1.8.4
+  * `golang.org/x/text` v0.9.0 -> v0.13.0
+
 ## v0.16.0
 
 ### IMPROVEMENTS:
