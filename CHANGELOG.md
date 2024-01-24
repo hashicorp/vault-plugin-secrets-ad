@@ -1,5 +1,10 @@
 ## Unreleased
 
+## v0.16.2
+
+### BUG FIXES:
+* Revert back to armon/go-metrics [GH-118](https://github.com/hashicorp/vault-plugin-secrets-ad/pull/118)
+
 ## v0.16.1
 
 ### IMPROVEMENTS:
