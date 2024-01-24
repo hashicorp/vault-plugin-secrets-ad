@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	metrics "github.com/hashicorp/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/locksutil"
 	"github.com/hashicorp/vault/sdk/logical"
