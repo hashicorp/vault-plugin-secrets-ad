@@ -1,4 +1,4 @@
-TOOL?=vault-plugin-secrets-active-directory
+TOOL?=vault-plugin-secrets-ad
 TEST?=$$(go list ./... | grep -v /vendor/ | grep -v teamcity)
 VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 EXTERNAL_TOOLS=

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MPL-2.0
 
 
-TOOL=vault-plugin-secrets-active-directory
+TOOL=vault-plugin-secrets-ad
 
 # This script builds the application from source for multiple platforms.
 set -e
@@ -45,7 +45,7 @@ ${GO_CMD} build \
     -ldflags "-X github.com/hashicorp/${TOOL}/version.GitCommit='${GIT_COMMIT}${GIT_DIRTY}'" \
     -o "bin/${TOOL}" \
     -tags "${BUILD_TAGS}" \
-    .
+    "cmd/${TOOL}/main.go"
 
 # Move all the compiled things to the $GOPATH/bin
 OLDIFS=$IFS
