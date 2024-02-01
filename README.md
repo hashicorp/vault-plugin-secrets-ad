@@ -73,7 +73,7 @@ Once the server is started, register the plugin in the Vault server's [plugin ca
 ```sh
 $ vault plugin register \
         -sha256=<SHA256 Hex value of the plugin binary> \
-        -command="vault-plugin-secrets-active-directory" \
+        -command="vault-plugin-secrets-ad" \
         secret \
         custom-ad
 ```
