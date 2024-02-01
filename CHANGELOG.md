@@ -1,11 +1,24 @@
 ## Unreleased
 
+## v0.17.0
+### February 1, 2024
+
+### IMPROVEMENTS:
+* Updated dependencies:
+  *	`github.com/go-errors/errors` v1.5.0 -> v1.5.1
+  *	`github.com/hashicorp/go-hclog` v1.5.0 -> v1.6.2
+  *	`github.com/hashicorp/vault/api` v1.10.0 -> v0.10.0
+  *	`github.com/hashicorp/vault/api` v1.11.0 -> v0.10.2
+  *	`golang.org/x/text` v0.13.0 -> v0.14.0
+
 ## v0.16.2
+### January 24, 2024
 
 ### BUG FIXES:
 * Revert back to armon/go-metrics [GH-118](https://github.com/hashicorp/vault-plugin-secrets-ad/pull/118)
 
 ## v0.16.1
+### September 7, 2023
 
 ### IMPROVEMENTS:
 * Updated dependencies:
@@ -16,6 +29,7 @@
   * `golang.org/x/text` v0.9.0 -> v0.13.0
 
 ## v0.16.0
+### May 24, 2023
 
 ### IMPROVEMENTS:
 
@@ -27,20 +41,24 @@
   * `golang.org/x/net` v0.7.0
 
 ## v0.15.0
+### February 7, 2023
 
 * Plugin release milestone
 
 ## v0.14.1
+### December 1, 2022
 
 ### BUG FIXES:
 
 * Fix bug where updates to config would fail if password isn't provided [GH-91](https://github.com/hashicorp/vault-plugin-secrets-ad/pull/91)
 
 ## v0.14.0
+### September 19, 2022
 
 * Plugin release milestone
 
 ## v0.13.1
+### June 22, 2022
 
 ### IMPROVEMENTS:
 
