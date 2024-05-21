@@ -8,12 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
-	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/locksutil"
 	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/patrickmn/go-cache"
+
+	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
+	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/util"
 )
 
 func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend, error) {

@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"github.com/go-errors/errors"
-	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
 	"github.com/hashicorp/vault/sdk/helper/ldaputil"
+
+	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
 )
 
 // Tests to check root credential rotation are found in ./backend_test.go

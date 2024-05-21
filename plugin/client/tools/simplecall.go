@@ -8,8 +8,9 @@ import (
 	"os"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
 	"github.com/hashicorp/vault/sdk/helper/ldaputil"
+
+	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
 )
 
 var (

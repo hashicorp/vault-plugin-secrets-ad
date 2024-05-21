@@ -12,8 +12,9 @@ import (
 	"time"
 
 	"github.com/go-ldap/ldap/v3"
-	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
 	"github.com/hashicorp/vault/sdk/logical"
+
+	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
 )
 
 var (
