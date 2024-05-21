@@ -13,6 +13,8 @@ import (
 	"github.com/hashicorp/vault/sdk/helper/ldaputil"
 )
 
+var _ ldaputil.LDAP = &FakeLDAPClient{}
+
 // FakeLDAPClient can be used to inspect the LDAP requests that have been constructed,
 // and to inject responses.
 type FakeLDAPClient struct {
@@ -22,6 +24,8 @@ type FakeLDAPClient struct {
 func (f *FakeLDAPClient) DialURL(addr string, opts ...ldap.DialOpt) (ldaputil.Connection, error) {
 	return f.ConnToReturn, nil
 }
+
+var _ ldaputil.Connection = &FakeLDAPConnection{}
 
 type FakeLDAPConnection struct {
 	ModifyRequestToExpect *ldap.ModifyRequest
@@ -41,7 +45,9 @@ func (f *FakeLDAPConnection) Bind(username, password string) error {
 	return nil
 }
 
-func (f *FakeLDAPConnection) Close() {}
+func (f *FakeLDAPConnection) Close() error {
+	return nil
+}
 
 func (f *FakeLDAPConnection) Modify(modifyRequest *ldap.ModifyRequest) error {
 	if !reflect.DeepEqual(f.ModifyRequestToExpect, modifyRequest) {

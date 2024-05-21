@@ -8,8 +8,9 @@ import (
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/ldapifc"
 	"github.com/hashicorp/vault/sdk/helper/ldaputil"
+
+	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/ldapifc"
 )
 
 func TestSearch(t *testing.T) {
@@ -22,7 +23,9 @@ func TestSearch(t *testing.T) {
 
 	ldapClient := &ldaputil.Client{
 		Logger: hclog.NewNullLogger(),
-		LDAP:   &ldapifc.FakeLDAPClient{conn},
+		LDAP: &ldapifc.FakeLDAPClient{
+			ConnToReturn: conn,
+		},
 	}
 
 	client := &Client{ldap: ldapClient}

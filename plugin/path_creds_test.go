@@ -10,9 +10,10 @@ import (
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
+
+	"github.com/hashicorp/vault-plugin-secrets-ad/plugin/client"
 )
 
 func Test_TTLIsRespected(t *testing.T) {

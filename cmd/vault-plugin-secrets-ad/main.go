@@ -7,9 +7,10 @@ import (
 	"os"
 
 	hclog "github.com/hashicorp/go-hclog"
-	ad "github.com/hashicorp/vault-plugin-secrets-ad/plugin"
 	"github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/sdk/plugin"
+
+	ad "github.com/hashicorp/vault-plugin-secrets-ad/plugin"
 )
 
 func main() {

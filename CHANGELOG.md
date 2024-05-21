@@ -1,8 +1,12 @@
-## Unreleased
+## v0.18.0
+### May 21, 2024
 
 ### IMPROVEMENTS:
 * Updated dependencies:
    * `github.com/hashicorp/go-plugin` v1.5.2 -> v1.6.0 to enable running the plugin in containers
+   * `github.com/go-ldap/ldap/v3` v3.4.4 -> v3.4.8
+   * `golang.org/x/text` v0.14.0 -> v0.15.0
+   * `github.com/stretchr/testify` v1.8.4 -> v1.9.0
 
 ## v0.17.0
 ### February 1, 2024
