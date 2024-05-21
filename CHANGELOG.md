@@ -1,4 +1,5 @@
-## Unreleased
+## v0.18.0
+### May 21, 2024
 
 ### IMPROVEMENTS:
 * Updated dependencies:
