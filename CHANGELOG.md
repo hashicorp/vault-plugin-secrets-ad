@@ -1,3 +1,11 @@
+## v0.19.0
+### Sept 11, 2024
+
+### Improvements:
+* Updated dependencies:
+  * `github.com/docker/docker` v25.0.5 -> v25.0.6
+  * `github.com/hashicorp/go-retryablehttp` v0.7.1 -> v0.7.7
+
 ## v0.18.0
 ### May 21, 2024
 
