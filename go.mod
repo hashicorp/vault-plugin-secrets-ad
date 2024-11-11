@@ -5,10 +5,10 @@ go 1.21
 toolchain go1.22.2
 
 require (
-	github.com/armon/go-metrics v0.4.1
 	github.com/go-errors/errors v1.5.1
 	github.com/go-ldap/ldap/v3 v3.4.8
 	github.com/hashicorp/go-hclog v1.6.3
+	github.com/hashicorp/go-metrics v0.5.4-0.20241111182750-ceaacca141e7
 	github.com/hashicorp/go-secure-stdlib/base62 v0.1.2
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2
 	github.com/hashicorp/vault/api v1.13.0
@@ -22,6 +22,7 @@ require (
 require (
 	github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
+	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
 	github.com/containerd/log v0.1.0 // indirect
