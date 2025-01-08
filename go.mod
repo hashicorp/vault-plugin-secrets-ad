@@ -8,7 +8,7 @@ require (
 	github.com/go-errors/errors v1.5.1
 	github.com/go-ldap/ldap/v3 v3.4.8
 	github.com/hashicorp/go-hclog v1.6.3
-	github.com/hashicorp/go-metrics v0.5.4-0.20241111182750-ceaacca141e7
+	github.com/hashicorp/go-metrics v0.5.4
 	github.com/hashicorp/go-secure-stdlib/base62 v0.1.2
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2
 	github.com/hashicorp/vault/api v1.13.0
