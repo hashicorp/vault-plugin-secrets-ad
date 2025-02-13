@@ -1,3 +1,12 @@
+## v0.20.0
+### Feb 13, 2025
+
+### Improvements:
+* Updated dependencies:
+  * https://github.com/hashicorp/vault-plugin-secrets-ad/pull/132
+  * https://github.com/hashicorp/vault-plugin-secrets-ad/pull/133
+  * https://github.com/hashicorp/vault-plugin-secrets-ad/pull/134
+
 ## v0.19.0
 ### Sept 11, 2024
 
