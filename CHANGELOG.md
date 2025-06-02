@@ -3,6 +3,7 @@
 
 ### Improvements
 * Updated dependencies:
+  * Go version: 1.23.6 -> 1.24.3
   * `github.com/go-ldap/ldap/v3` v3.4.8 -> v3.4.11
   * `github.com/hashicorp/vault/sdk` v0.15.0 -> v0.17.0
   * `golang.org/x/text` v0.22.0 -> v0.25.0
