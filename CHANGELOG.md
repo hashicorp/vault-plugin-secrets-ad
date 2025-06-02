@@ -1,3 +1,12 @@
+## v0.21.0
+### Jun 2, 2025
+
+### Improvements
+* Updated dependencies:
+  * `github.com/go-ldap/ldap/v3` v3.4.8 -> v3.4.11
+  * `github.com/hashicorp/vault/sdk` v0.15.0 -> v0.17.0
+  * `golang.org/x/text` v0.22.0 -> v0.25.0
+
 ## v0.20.0
 ### Feb 13, 2025
 
