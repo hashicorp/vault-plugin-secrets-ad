@@ -5,7 +5,6 @@ package plugin
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -61,7 +60,7 @@ func TestCheckOutHandlerStorageLayer(t *testing.T) {
 		t.Fatal("storedCheckOut should not be nil")
 	}
 	if !reflect.DeepEqual(testCheckOut, storedCheckOut) {
-		t.Fatalf(fmt.Sprintf(`expected %+v to be equal to %+v`, testCheckOut, storedCheckOut))
+		t.Fatalf(`expected %+v to be equal to %+v`, testCheckOut, storedCheckOut)
 	}
 
 	// If we try to check something out that's already checked out, we should
