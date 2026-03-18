@@ -1,3 +1,15 @@
+## v0.22.0
+### March 18, 2026
+
+### Improvements
+* Updated dependencies (#155):
+  * go 1.25.0 => 1.26.1
+  * github.com/hashicorp/vault/sdk v0.20.0 => v0.23.0
+  * golang.org/x/text v0.29.0 => v0.33.0
+  * golang.org/x/sys v0.34.0 => v0.40.0
+  * golang.org/x/crypto v0.40.0 => v0.47.0
+  * golang.org/x/net v0.42.0 => v0.49.0
+  
 ## v0.21.0
 ### Jun 2, 2025
 
