@@ -1,6 +1,18 @@
 ## v0.22.0
 ### March 18, 2026
 
+* prepare v0.22.0 release (#155)
+* [COMPLIANCE] Update Copyright and License Headers (#154)
+* chore: remove changie (#152)
+* Updates for Vault 1.21 release (#151)
+* init changie (#149)
+* Add backport assistant workflow (#147)
+* VAULT-36974: Add backport assistant workflow (#146)
+* [Compliance] - PR Template Changes Required (#145)
+
+## v0.22.0
+### March 18, 2026
+
 ### Improvements
 * Updated dependencies (#155):
   * go 1.25.0 => 1.26.1
