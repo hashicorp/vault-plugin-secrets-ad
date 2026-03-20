@@ -1,3 +1,12 @@
+## v0.22.1
+### March 20, 2026
+
+### Improvements
+* Updated dependencies (#157):
+  * golang.org/x/crypto v0.48.0 => v0.49.0
+  * golang.org/x/net v0.50.0 => v0.52.0
+  * golang.org/x/sys v0.41.0 => v0.42.0
+
 ## v0.22.0
 ### March 18, 2026
 
