@@ -1,6 +1,12 @@
 ## v0.22.1
 ### March 20, 2026
 
+* update dependencies to clear GO-2026-4559 CVE (#157)
+* Automated dependency upgrades (#156)
+
+## v0.22.1
+### March 20, 2026
+
 ### Improvements
 * Updated dependencies (#157):
   * golang.org/x/crypto v0.48.0 => v0.49.0
