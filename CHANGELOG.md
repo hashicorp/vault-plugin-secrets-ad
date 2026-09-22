@@ -1,3 +1,11 @@
+## v0.23.0
+### September 22, 2026
+
+* vault-50063: chore: ceil dependencies to Vault Enterprise (#162)
+* [COMPLIANCE] Add/Update Copyright Headers (#150)
+* VAULT-50051: chore: automated Go/dependency update via vault-plugin-release (#161)
+* bumping crypto for secvuln fix (#160)
+
 ## v0.22.1
 ### March 20, 2026
 
