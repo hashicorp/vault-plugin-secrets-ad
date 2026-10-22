@@ -1,3 +1,8 @@
+## v0.23.1
+### October 22, 2026
+
+* bump go version and crypto (#164)
+
 ## v0.22.1
 ### March 20, 2026
 
